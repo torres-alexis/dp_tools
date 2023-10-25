@@ -320,10 +320,22 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                 # getting compatible column
                 target_col = get_column_name(df_merged, entry["ISA Field Name"])
 
-                # split into separate values
-                values: pd.DataFrame = df_merged[target_col].str.split(
-                    pat=entry["Multiple Values Delimiter"], expand=True
-                )
+                # Splits values on match regex entry.get("Match Regex") for amplicon primers
+                if entry.get("Match Regex"):
+                    try:
+                        pattern = entry.get("Match Regex")
+                        values: pd.DataFrame = df_merged[target_col].str.extractall(pattern).unstack(level=-1)
+                        values.columns = values.columns.droplevel(0)
+                    except re.error as e:
+                        print(f"Invalid primer regex pattern: {e}")
+                    except Exception as e:
+                        print(f"An error occurred while trying to find primers: {e}")
+                
+                else:
+                    # split into separate values based on delimiter
+                    values: pd.DataFrame = df_merged[target_col].str.split(
+                        pat=entry["Multiple Values Delimiter"], expand=True
+                    )
 
                 # rename columns with runsheet names, checking if optional columns are included
                 runsheet_col: dict

@@ -17,7 +17,7 @@ Staging:
         - ISA Field Name: Study Assay Technology Type
           ISA Table Source: Investigation
           Investigation Subtable: STUDY ASSAYS
-          Runsheet Column Name: Study Assay Technology Type
+          Runsheet Column Name: Parameter Value[Library Selection]
           Processing Usage: >-
             Indicates the sequencing target gene
           Example: 16S / ITS / 16S and ITS (3 examples, see GLDS-249)
@@ -82,6 +82,20 @@ Staging:
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
           Example: 'TRUE'
+
+        - ISA Field Name: 
+            - Parameter Value[primer info]
+            - Parameter Value[Primer Info]
+            - Parameter Value[Primer info]
+          ISA Table Source: Assay
+          Multiple Values Per Entry: true
+          Runsheet Column Name: 
+            - {'name':'F_Primer', 'index':0}
+            - {'name':'R_Primer', 'index':1, 'optional':true}
+          Match Regex: 5'-\s*([A-Za-z]+)\s*-3'
+          Processing Usage: >-
+            Maps the Forward and Reverse primers to the appropriate runsheet columns
+          Example: 515F, 5'-GTGYCAGCMGCCGCGGTAA-3', 806R, 5'-GGACTACNVGGGTWTCTAAT-3' yields GTGYCAGCMGCCGCGGTAA and GGACTACNVGGGTWTCTAAT
     
         # this entry denotes the following:
         # retrieve from that ISA field name
@@ -100,7 +114,7 @@ Staging:
           Runsheet Column Name: 
             - {'name':'read1_path', 'index':0}
             - {'name':'read2_path', 'index':1, 'optional':true}
-          GLDS URL Mapping: true
+          GLDS URL Mapping: false
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'

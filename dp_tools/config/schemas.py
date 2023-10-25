@@ -55,6 +55,10 @@ runsheet = {
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
+            "F_Primer": pa.Column(str), # Expect if paired_end is True
+            "R_Primer": pa.Column(str, required=False), # Expect if paired_end is True
+            #"raw_R1_suffix": pa.Column(str),
+            #"raw_R2_suffix": pa.Column(str, required=False) # Expect if paired_end is True
         },
         # define checks at the DataFrameSchema-level
         checks=check_read2_path_populated_if_paired_end
