@@ -1,6 +1,6 @@
 # TOP LEVEL
 NAME: "amplicon"
-VERSION: "1"
+VERSION: "0"
 
 Staging:
   General:
@@ -14,13 +14,13 @@ Staging:
         #     Mapping to the appropriate processing pipeline for the assay.
         #   Example: transcription profiling
 
-        # - ISA Field Name: Study Assay Technology Type
-        #   ISA Table Source: Investigation
-        #   Investigation Subtable: STUDY ASSAYS
-        #   Runsheet Column Name: Study Assay Technology Type
-        #   Processing Usage: >-
-        #     Mapping to the appropriate processing pipeline for the assay.
-        #   Example: DNA microarray
+        - ISA Field Name: Study Assay Technology Type
+          ISA Table Source: Investigation
+          Investigation Subtable: STUDY ASSAYS
+          Runsheet Column Name: Study Assay Technology Type
+          Processing Usage: >-
+            Indicates the sequencing target gene
+          Example: 16S / ITS / 16S and ITS (3 examples, see GLDS-249)
 
         # - ISA Field Name: Study Assay Technology Platform
         #   ISA Table Source: Investigation
@@ -30,20 +30,20 @@ Staging:
         #     Mapping to the appropriate processing pipeline for the assay.
         #   Example: Affymetrix
 
-        - ISA Field Name: Study Protocol Type
-          ISA Table Source: Investigation
-          Investigation Subtable: STUDY PROTOCOLS
-          # will return a boolean indicating if any of the following includes
-          True If Includes At Least One:
-            - spike-in quality control role
-            - spike-in protocol
-            - spike-in control
-            - spike-in control protocol
-          Runsheet Column Name: has_ERCC
-          Processing Usage: >-
-            Indicates is ERCC spike-in has been added. This can be automatically
-            determined from the ISA archive as well based on 'Study Protocol Name' and 'Study Protocol Type'
-          Example: 'TRUE'
+        # - ISA Field Name: Study Protocol Type
+        #   ISA Table Source: Investigation
+        #   Investigation Subtable: STUDY PROTOCOLS
+        #   # will return a boolean indicating if any of the following includes
+        #   True If Includes At Least One:
+        #     - spike-in quality control role
+        #     - spike-in protocol
+        #     - spike-in control
+        #     - spike-in control protocol
+        #   Runsheet Column Name: has_ERCC
+        #   Processing Usage: >-
+        #     Indicates is ERCC spike-in has been added. This can be automatically
+        #     determined from the ISA archive as well based on 'Study Protocol Name' and 'Study Protocol Type'
+        #   Example: 'TRUE'
 
         - ISA Field Name: 
             - Characteristics[Organism]
@@ -52,7 +52,17 @@ Staging:
           Runsheet Column Name: organism
           Processing Usage: >-
             Mapping to the appropriate alignment reference and annotation databases.
-          Example: Arabidopsis thaliana
+          Example: Microbiota
+
+        - ISA Field Name: 
+            - Characteristics[host organism]
+            - Characteristics[Host Organism]
+            - Characteristics[Host organism]
+          ISA Table Source: Sample
+          Runsheet Column Name: host organism
+          Processing Usage: >-
+            Mapping to the appropriate alignment reference and annotation databases.
+          Example: Mus musculus
 
         - ISA Field Name: Sample Name
           ISA Table Source: Assay
@@ -67,14 +77,14 @@ Staging:
             - Parameter Value[Library Layout]
           ISA Table Source: Assay
           Runsheet Column Name: paired_end
-          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false}
+          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false, "Single":false}
           Processing Usage: >-
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
           Example: 'TRUE'
     
         # this entry denotes the following:
-        # retrive from that ISA field name
+        # retrieve from that ISA field name
         # multiple values (separated by ",")
         # index those to certain runsheet columns
         # if the index doesn't exist, optional prevents raising an exception
@@ -146,111 +156,35 @@ Staging:
 
 ISA Meta:
   Valid Study Assay Technology And Measurement Types:
-    - measurement: "transcription profiling"
-      technology: "RNA Sequencing (RNA-Seq)"
+    - measurement: "Amplicon Sequencing"
+      technology: "16S"
 
   # this is prepended to all file names in the curation assay table
-  Global file prefix: "{datasystem}_rna_seq_"
+  Global file prefix: "{datasystem}_amplicon_"
 
-  # configuration related to updating investigation file
-  # each must refer to a STUDY PROCESS in the 'ISA_investigation.yaml' file
-  # LEADCAP_organism should be the studied organisms scientific name with a leading cap
-  Post Processing Add Study Protocol: 
-    GeneLab RNAseq data processing protocol::{LEADCAP_organism} V1
+  # # configuration related to updating investigation file
+  # # each must refer to a STUDY PROCESS in the 'ISA_investigation.yaml' file
+  # # LEADCAP_organism should be the studied organisms scientific name with a leading cap
+  # Post Processing Add Study Protocol: 
+  #   GeneLab Methyl-Seq data processing protocol::{LEADCAP_organism} V1
 
 data assets:
   runsheet:
     processed location: 
       - "Metadata"
-      - "{dataset}_bulkRNASeq_v1_runsheet.csv"
+      - "{dataset}_amplicon_v1_runsheet.csv"
 
     tags:
       - raw
 
-    resource categories: *neverPublished
+    # resource categories: *neverPublished
 
   ISA Archive:
     processed location: 
       - "Metadata"
-      - "*-ISA.zip"
+      - "{dataset}_metadata_*-ISA.zip"
 
     tags:
       - raw
 
-    resource categories: *neverPublished
-
-  raw MultiQC directory:
-    processed location: 
-      - *rawDataDir
-      - *FastQC_Reports
-      - "raw_multiqc_report"
-
-    tags:
-      - raw
-
-    resource categories: *neverPublished
-
-  raw MultiQC directory ZIP:
-    processed location: 
-      - *rawDataDir
-      - *FastQC_Reports
-      - "raw_multiqc_report.zip"
-    
-    tags:
-      - raw
-
-    resource categories: &MergedSequenceData_MultiQCReports
-      subcategory: Merged Sequence Data
-      subdirectory: Multiqc Reports
-      publish to repo: true
-      include subdirectory in table: true
-      table order: 1
-
-  raw forward reads fastq GZ:
-    processed location:
-      - *rawDataDir
-      - "Fastq"
-      - "{sample}_R1_raw.fastq.gz"
-
-    tags:
-      - raw
-
-    resource categories: &MergedSequenceData_Fastq
-      subcategory: Merged Sequence Data
-      subdirectory: Fastq
-      publish to repo: true
-      include subdirectory in table: false
-      table order: 0
-
-  raw reverse reads fastq GZ:
-    processed location:
-      - *rawDataDir
-      - "Fastq"
-      - "{sample}_R2_raw.fastq.gz"
-
-    tags:
-      - raw
-      
-    resource categories: *MergedSequenceData_Fastq
-
-  raw reads fastq GZ:
-    processed location:
-      - *rawDataDir
-      - "Fastq"
-      - "{sample}_raw.fastq.gz"
-
-    tags:
-      - raw
-      
-    resource categories: *MergedSequenceData_Fastq
-
-  raw forward reads fastQC HTML:
-    processed location:
-      - *rawDataDir
-      - *FastQC_Reports
-      - "{sample}_R1_raw_fastqc.html"
-
-    tags:
-      - raw
-      
-    resource categories: *neverPublished
+    # resource categories: *neverPublished
