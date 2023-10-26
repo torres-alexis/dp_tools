@@ -358,6 +358,46 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                     )  # inplace operation doesn't seem to work
                 else:
                     values2 = values
+                # Extract suffixes if working on suffix entry
+                if 'raw_R1_suffix' in entry["Runsheet Column Name"][0].values():
+                    R1_designations = ["_R1_", "_R1.", "-R1.", "-R1-", ".R1.", "_1."]
+                    R2_designations = ["_R2_", "_R2.", "-R2.", "-R2-", ".R2.", "_2."]
+                    extensions = [".fq", ".fastq", ".fastq.gz"]
+                    # Convert designations to regex patterns, escape special characters, add extensions, eos character
+                    R1_patterns = [re.compile(re.escape(d) + r'[^ ]*(' + '|'.join(extensions) + ')$', re.IGNORECASE) for d in R1_designations]
+                    R2_patterns = [re.compile(re.escape(d) + r'[^ ]*(' + '|'.join(extensions) + ')$', re.IGNORECASE) for d in R2_designations]
+                    SE_pattern = re.compile(re.escape("_raw") + r'[^ ]*(' + '|'.join(extensions) + ')$', re.IGNORECASE)
+                    # Extract suffixes based on designations
+                    def extract_suffix(filename):
+                        matches = []
+                        # Check for R1 designations
+                        for pattern in R1_patterns:
+                            match = re.search(pattern, filename)
+                            if match:
+                                matches.append(match.group())
+                        # Check for R2 designations if no R1 designation was found
+                        if not matches:
+                            for pattern in R2_patterns:
+                                match = re.search(pattern, filename)
+                                if match:
+                                    matches.append(match.group())
+                        # If neither designations found, assume it's a SE file
+                        if not matches:
+                            match = re.search(SE_pattern, filename)
+                            if match:
+                                matches.append(match.group())
+
+                        # Assert that there's only one match and return it
+                        try:
+                            [unique_match] = matches  # This will raise an error if there's not exactly one match
+                        except ValueError:
+                            raise ValueError(f"Expected 1 file suffix but found {len(matches)} found in {filename}.")
+                        return unique_match
+                    
+                    values2 = values2.applymap(extract_suffix)
+
+
+
 
                 # add to final dataframe and check move onto entry
                 df_final = df_final.join(values2)
@@ -479,6 +519,12 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
     assert (
         len([col for col in df_final.columns if col.startswith("Factor Value[")]) != 0
     ), f"Must extract at least one factor value column but only has the following columns: {df_final.columns}"
+
+    # if amplicon runsheet: make groups column
+    if config[0] == "amplicon":
+        factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
+        df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
+
 
     ################################################################
     ################################################################
