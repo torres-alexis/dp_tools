@@ -503,6 +503,11 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
             f"The following orignal sample names modified for processing: {modified_samples}"
         )
 
+    # if amplicon runsheet: make groups column
+    if config[0] == "amplicon":
+        factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
+        df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
+
     ################################################################
     ################################################################
     # VALIDATION
@@ -520,11 +525,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         len([col for col in df_final.columns if col.startswith("Factor Value[")]) != 0
     ), f"Must extract at least one factor value column but only has the following columns: {df_final.columns}"
 
-    # if amplicon runsheet: make groups column
-    if config[0] == "amplicon":
-        factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
-        df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
-
+    
 
     ################################################################
     ################################################################
