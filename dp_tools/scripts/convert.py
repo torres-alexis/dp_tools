@@ -107,37 +107,29 @@ def get_assay_table_path(
     ]
 
     # check for matching rows based on configuration tuple
-    # one and only one row should match
-    # not very efficient, but table should never be too large for this to be of concern
+
     matches: list[Path] = list()
     match_indices = []  # List to store matching indices
 
     for valid_combination in valid_measurements_and_technology_types:
         log.debug(f"Searching subtable for {valid_combination}")
-        match_row = df.loc[
-            (
-                df[["Study Assay Measurement Type", "Study Assay Technology Type"]]
-                == valid_combination
-            ).all(axis="columns")
-        ]
-        match_file = [Path(val) for val in match_row["Study Assay File Name"].values]
-        matches.extend(match_file)
-        if match_file:
-            match_index = df.loc[
-                    (
-                        df[["Study Assay Measurement Type", "Study Assay Technology Type"]]
-                        == valid_combination
-                    ).all(axis="columns")
-                ].index.values
-            match_indices.extend(match_index)
-        if not matches:
-                raise ValueError(f"No matches found for queries: {valid_measurements_and_technology_types} against these listed in the ISA archive: {df[['Study Assay Measurement Type', 'Study Assay Technology Type']]}")
         
-        assay_paths = [
-            f
-            for f in isa_archive.fetch_isa_files(ISAarchive)
-            if f.name in [match.name for match in matches]
-        ]
+
+        mask = (df[["Study Assay Measurement Type", "Study Assay Technology Type"]] == valid_combination).all(axis="columns")
+        
+        match_row = df[mask]
+        match_file = [val for val in match_row["Study Assay File Name"].values]
+        matches.extend(match_file)
+
+        # Use mask to get index
+        match_index = match_row.index.values
+        match_indices.extend(match_index)
+    if not matches:
+        raise ValueError(f"No matches found for queries: {valid_measurements_and_technology_types} against these listed in the ISA archive: {df[['Study Assay Measurement Type', 'Study Assay Technology Type']]}")
+
+    all_files = {f.name: f for f in isa_archive.fetch_isa_files(ISAarchive)}
+    assay_paths = [all_files[match] for match in matches if match in all_files]
+
 
     return assay_paths, match_indices
 
@@ -231,7 +223,6 @@ def get_column_name(df: pd.DataFrame, target: Union[str, list]) -> str:
             f"Could not find required column '{target}' "
             f"in either ISA sample or assay table. These columns were found: {list(df.columns)}"
         ) from e
-
 
 # TODO: Needs heavy refactoring and log messaging
 def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, str], Path], inject: dict[str, str] = {}, schema: Union[DataFrameSchema, None] = None):
@@ -336,14 +327,21 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                             pattern = entry.get("Match Regex")
                             values: pd.DataFrame = df_merged[target_col].str.extractall(pattern).unstack(level=-1)
                             values.columns = values.columns.droplevel(0)
-
-                            # Check if the resulting DataFrame is empty, some datasets only point to a CSV with primers
-                            if values.empty:
-                                values[0] = df_merged[target_col]
                         except re.error as e:
                             print(f"Invalid primer regex pattern: {e}")
                         except Exception as e:
                             print(f"An error occurred while trying to find primers: {e}")
+                        # # If the primer entries do not match the expected format, try splitting them with a delimiter
+                        # if values.empty:
+                        #     values = df_merged[target_col].str.split(
+                        #     pat=entry["Multiple Values Delimiter"], expand=True
+                        #     )
+                        #     # Need to refactor for SE assays
+                        #     if 1 not in values.columns: values[1] = values[0]
+                        # If the resulting DataFrame is still empty, copy the (CSV) entries to the primer cols, need to refactor for SE assays
+                        if values.empty:
+                            values[0] = df_merged[target_col]
+                            values[1] = df_merged[target_col]
                     
                     else:
                         # split into separate values based on delimiter
@@ -565,7 +563,6 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         )
         df_final.to_csv(output_fn)
         final_dfs.append(df_final)
-
     if len(final_dfs) == 1:
         return final_dfs[0]  # Return the sole dataframe
     else:
