@@ -92,7 +92,7 @@ Staging:
           Runsheet Column Name: 
             - {'name':'F_Primer', 'index':0}
             - {'name':'R_Primer', 'index':1, 'optional':true}
-          Match Regex: 5'-\s*([A-Za-z]+)\s*-3'
+          Match Regex: "[5‚Äô'-]+\\s*([A-Za-z]+)\\s*[-3‚Äô']+"
           Multiple Values Delimiter: '\s*,\s*' # whitespace surrounded comma
           Processing Usage: >-
             Maps the Forward and Reverse primers to the appropriate runsheet columns
