@@ -51,7 +51,7 @@ runsheet = {
             "Original Sample Name": pa.Column(str),
             #"has_ERCC": pa.Column(bool, check_single_value),
             "organism": pa.Column(str, check_single_value),
-            "host organism": pa.Column(str, check_single_value),
+            "host organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True

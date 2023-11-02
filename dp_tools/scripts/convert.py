@@ -238,7 +238,8 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
     else:
         runsheet_schema = schema
     i_tables = isa_investigation_subtables(isaArchive)
-    
+    R1_designations = ["_R1_", "_R1.", "-R1.", "-R1-", ".R1.", "_1."]
+    R2_designations = ["_R2_", "_R2.", "-R2.", "-R2-", ".R2.", "_2."]
 
     
     assay_table_paths, assay_table_indices = get_assay_table_path(ISAarchive=isaArchive, configuration=configuration)
@@ -349,6 +350,11 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                             pat=entry["Multiple Values Delimiter"], expand=True
                         )
 
+                    # Create a mask to determine if column 0 contains any of the R1_designations
+                    mask = values[0].str.contains('|'.join(R1_designations), na=False, case=False, regex=True)
+                    # For rows where column 0 contains R2 patterns instead of R1, swap the values
+                    values.loc[~mask, [0, 1]] = values.loc[~mask, [1, 0]].values
+
                     # rename columns with runsheet names, checking if optional columns are included
                     runsheet_col: dict
                     for runsheet_col in entry["Runsheet Column Name"]:
@@ -370,10 +376,9 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                         )  # inplace operation doesn't seem to work
                     else:
                         values2 = values
+                        
                     # Extract suffixes if working on suffix entry - only for Amplicon
                     if 'raw_R1_suffix' in entry["Runsheet Column Name"][0].values():
-                        R1_designations = ["_R1_", "_R1.", "-R1.", "-R1-", ".R1.", "_1."]
-                        R2_designations = ["_R2_", "_R2.", "-R2.", "-R2-", ".R2.", "_2."]
                         extensions = [".fq", ".fastq", ".fastq.gz", "HRremoved_raw.fastq.gz"]
                         # Convert designations to regex patterns, escape special characters, add extensions, eos character
                         R1_patterns = [re.compile(re.escape(d) + r'[^ ]*(' + '|'.join(extensions) + ')$', re.IGNORECASE) for d in R1_designations]
