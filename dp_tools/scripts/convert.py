@@ -351,8 +351,10 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                         )
 
                     if values.shape[1] > 1:
-                        mask = values[0].str.contains('|'.join(R1_designations), na=False, case=False, regex=True)
-                        values.loc[~mask, [0, 1]] = values.loc[~mask, [1, 0]].values
+                        # Creating a mask where True indicates the presence of any 'R2_designations'
+                        mask = values[0].str.contains('|'.join(R2_designations), na=False, case=False, regex=True)
+                        # Only swap values where the mask is True
+                        values.loc[mask, [0, 1]] = values.loc[mask, [1, 0]].values
 
                     # rename columns with runsheet names, checking if optional columns are included
                     runsheet_col: dict
