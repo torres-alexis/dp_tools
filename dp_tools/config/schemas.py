@@ -14,8 +14,8 @@ check_single_value = pa.Check(
     )
 
 check_read2_path_populated_if_paired_end = pa.Check(
-    lambda df: ("read2_path" in df.columns and df['paired_end'][0] == True) or
-               ("read2_path" not in df.columns and df['paired_end'][0] == False),
+    lambda df: ("read2_path" in df.columns and df['paired_end'].iloc[0] == True) or
+               ("read2_path" not in df.columns and df['paired_end'].iloc[0] == False),
     title="Check 'read2_path' is only populated if paired_end is True",
     description="Failures here are likely either due to manual user error or inappropriate source file (e.g. ISA archive)",
     error="Expected 'read2_path' to be populated only if paired_end is True"

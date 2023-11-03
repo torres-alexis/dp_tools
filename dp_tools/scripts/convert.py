@@ -74,7 +74,7 @@ def isa_investigation_subtables(ISAarchive: Path) -> dict[str, pd.DataFrame]:
 
         # note: as a ref, no reassign needed
         tables[key] = (
-            df.rename(columns=df.iloc[0]).drop(df.index[0]).applymap(clean_quotes)
+            df.rename(columns=df.iloc[0]).drop(df.index[0]).map(clean_quotes)
         )
 
     # ensure all expected subtables present
@@ -368,7 +368,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                                 )
 
                     if entry.get("GLDS URL Mapping"):
-                        values2 = values.applymap(
+                        values2 = values.map(
                             lambda filename: retrieve_file_url(
                                 accession=accession, filename=filename
                             )
@@ -410,7 +410,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                                 raise ValueError(f"Expected 1 file suffix but found {len(matches)} found in {filename}.")
                             return unique_match
                         
-                        values2 = values2.applymap(extract_suffix)
+                        values2 = values2.map(extract_suffix)
 
 
 
