@@ -15,6 +15,8 @@ from pandera import DataFrameSchema
 
 import logging
 import os
+import sys
+import atexit
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +189,10 @@ def main():
         assert (
             args.config_type in SUPPORTED_CONFIG_TYPES
         ), f"Invalid config type supplied: '{args.config_type}' Supported config types: {SUPPORTED_CONFIG_TYPES} "
+        
+        if args.config_type == "amplicon":
+            atexit.register(lambda: print("Warning: This script may not work as intended for amplicon sequencing datasets annotated before 2022. The Data Processing Team is actively working to address this issue.", file=sys.stderr))
+
         config = (args.config_type, args.config_version)
         isa_to_runsheet(args.accession, Path(args.isa_archive), config, inject = inject)
     else:
