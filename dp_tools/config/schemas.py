@@ -49,7 +49,6 @@ runsheet = {
     "amplicon": pa.DataFrameSchema(
         columns={
             "Original Sample Name": pa.Column(str),
-            #"has_ERCC": pa.Column(bool, check_single_value),
             "organism": pa.Column(str),
             "host organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),

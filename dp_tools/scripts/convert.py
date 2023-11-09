@@ -338,24 +338,17 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                             print(f"Invalid primer regex pattern: {e}")
                         except Exception as e:
                             print(f"An error occurred while trying to find primers: {e}")
-                        # # If the primer entries do not match the expected format, try splitting them with a delimiter
-                        # if values.empty:
-                        #     values = df_merged[target_col].str.split(
-                        #     pat=entry["Multiple Values Delimiter"], expand=True
-                        #     )
-                        #     # Need to refactor for SE assays
-                        #     if 1 not in values.columns: values[1] = values[0]
                         # If the resulting DataFrame is still empty, copy the (CSV) entries to the primer cols, need to refactor for SE assays
                         if values.empty:
                             values[0] = df_merged[target_col]
                             values[1] = df_merged[target_col]
-                    
                     else:
                         # split into separate values based on delimiter
                         values: pd.DataFrame = df_merged[target_col].str.split(
                             pat=entry["Multiple Values Delimiter"], expand=True
                         )
 
+                    # Swap read path columns if necessary
                     if values.shape[1] > 1:
                         # Escape special characters in R2_designations to search for them 
                         R2_pattern = '|'.join([re.escape(designation) for designation in R2_designations])
