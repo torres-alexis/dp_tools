@@ -189,6 +189,8 @@ ISA Meta:
     - measurement: "Amplicon Sequencing"
       technology: "16S"
     - measurement: "Amplicon Sequencing"
+      technology: "18S"
+    - measurement: "Amplicon Sequencing"
       technology: "16S and ITS"
     - measurement: "Amplicon Sequencing"
       technology: "ITS"
