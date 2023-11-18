@@ -1,6 +1,6 @@
 # TOP LEVEL
 NAME: "amplicon"
-VERSION: "0"
+VERSION: "1"
 
 Staging:
   General:
@@ -92,7 +92,8 @@ Staging:
           Runsheet Column Name: 
             - {'name':'F_Primer', 'index':0}
             - {'name':'R_Primer', 'index':1, 'optional':true}
-          Match Regex: 5'-\s*([A-Za-z]+)\s*-3'
+          Match Regex: "[5‚Äô'-]+\\s*([A-Za-z]+)\\s*[-3‚Äô']+"
+          Multiple Values Delimiter: '\s*,\s*' # whitespace surrounded comma
           Processing Usage: >-
             Maps the Forward and Reverse primers to the appropriate runsheet columns
           Example: 515F, 5'-GTGYCAGCMGCCGCGGTAA-3', 806R, 5'-GGACTACNVGGGTWTCTAAT-3' yields GTGYCAGCMGCCGCGGTAA and GGACTACNVGGGTWTCTAAT
@@ -114,7 +115,7 @@ Staging:
           Runsheet Column Name: 
             - {'name':'read1_path', 'index':0}
             - {'name':'read2_path', 'index':1, 'optional':true}
-          GLDS URL Mapping: false
+          GLDS URL Mapping: True
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'
@@ -187,6 +188,8 @@ ISA Meta:
   Valid Study Assay Technology And Measurement Types:
     - measurement: "Amplicon Sequencing"
       technology: "16S"
+    - measurement: "Amplicon Sequencing"
+      technology: "18S"
     - measurement: "Amplicon Sequencing"
       technology: "16S and ITS"
     - measurement: "Amplicon Sequencing"
