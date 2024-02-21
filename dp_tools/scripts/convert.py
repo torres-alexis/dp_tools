@@ -139,7 +139,7 @@ def get_assay_table_path(
 
 
 
-SUPPORTED_CONFIG_TYPES = ["microarray", "bulkRNASeq", "methylSeq", "amplicon"]
+SUPPORTED_CONFIG_TYPES = ["microarray", "bulkRNASeq", "methylSeq", "amplicon", "metagenomics"]
 
 
 def _parse_args():
