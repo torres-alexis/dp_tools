@@ -12,7 +12,7 @@ long_description = (
 
 setup(
     name="dp_tools",
-    version="1.3.4",
+    version="1.3.5",
     description="Tooling for Data Processing Operations",
     author="Jonathan Oribello",
     author_email="jonathan.d.oribello@gmail.com",
@@ -26,7 +26,7 @@ setup(
     install_requires=[
         "requests",
         "pyyaml",
-        "pandas==1.4.4",
+        "pandas>=2.1.2",
         "schema",
         "tabulate",
         "multiqc",
