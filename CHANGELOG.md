@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - dpt-isa-to-runsheet: Now creates multiple runsheets if more than 1 match found in ISA
 - dpt-isa-to-runsheet: Minor robustness fix to factor column assertion
-- Added support for amplicon and metagenomics
+- dpt-isa-to-runsheet: Added support for amplicon and metagenomics
 - post-processing: Changed assay update logic to append processed file columns rather than replace
 - Added multiQC metrics extraction (rewrite in progress)
-- 
+
 ## [1.3.4]
 
 ### Changed
