@@ -280,30 +280,34 @@ def generate_new_column_dicts(
 
 
 def extend_assay_dataframe(
-    df_orignal: pd.DataFrame, new_column_data: dict, new_column_order: dict
+    df_original: pd.DataFrame, new_column_data: dict, new_column_order: dict
 ):
-    # original columns in order
-    orig_columns = list(df_orignal.columns)
-    sorted_new_columns = [
-        col for col in sorted(new_column_order, key=lambda k: new_column_order[k])
-    ]
-    df_extended = df_orignal.join(pd.DataFrame(new_column_data))
-
-    # now reorder with both new and original columns
+    # Extract original column names
+    orig_columns = list(df_original.columns)
+    
+    # Define suffix for new columns
+    suffix = '_new'
+    
+    # Create DataFrame for new data with suffixed column names
+    suffixed_new_columns = {f"{k}{suffix}": v for k, v in new_column_data.items()}
+    df_new_data = pd.DataFrame(suffixed_new_columns)
+    
+    # Join the original dataframe with the new data with suffixed columns
+    df_extended = df_original.join(df_new_data)
+    
+    # Reorder columns if necessary, adding suffixed new columns
+    sorted_new_columns = [f"{col}{suffix}" for col in sorted(new_column_order, key=lambda k: new_column_order[k])]
     df_extended = df_extended[orig_columns + sorted_new_columns]
 
-    # guards
-    assert len(df_extended.index) == len(
-        df_orignal.index
-    ), f"After join, index length did not stay the same: old_length-{len(df_orignal.index)} new_length-{len(df_extended.index)}"
-    assert len(df_extended.columns) > len(
-        df_orignal.columns
-    ), f"After join, no new columns were added"
+    # Assertions for data integrity checks
+    assert len(df_extended.index) == len(df_original.index), "Index length did not stay the same"
+    assert len(df_extended.columns) > len(df_original.columns), "No new columns were added"
 
-    # dropped NA columns
-    # these often exist due to an old requirement to include ontology columns
-    # even when no such ontology values were present
+    # Drop columns that are completely NA
     df_extended = df_extended.dropna(axis="columns", how="all")
+
+    # Remove suffix from new column names
+    df_extended.columns = [col.replace(suffix, '') for col in df_extended.columns]
 
     return df_extended
 

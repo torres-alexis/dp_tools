@@ -418,9 +418,8 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
 
     if assert_factor_values:
         # ensure at least on Factor Value is extracted
-        assert (
-            len([col for col in df_final.columns if col.startswith("Factor Value[")]) != 0
-        ), f"Must extract at least one factor value column but only has the following columns: {df_final.columns}"
+        factor_value_cols = [col for col in df_final.columns if str(col).startswith("Factor Value[")]
+        assert len(factor_value_cols) != 0, f"Must extract at least one factor value column but only has the following columns: {', '.join(map(str, df_final.columns))}"
 
     ################################################################
     ################################################################
