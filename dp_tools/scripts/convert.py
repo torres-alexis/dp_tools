@@ -190,9 +190,6 @@ def main():
             args.config_type in SUPPORTED_CONFIG_TYPES
         ), f"Invalid config type supplied: '{args.config_type}' Supported config types: {SUPPORTED_CONFIG_TYPES} "
         
-        if args.config_type == "amplicon":
-            atexit.register(lambda: print("Warning: This script may not work as intended for amplicon sequencing datasets annotated before 2022. The Data Processing Team is actively working to address this issue.", file=sys.stderr))
-
         config = (args.config_type, args.config_version)
         isa_to_runsheet(args.accession, Path(args.isa_archive), config, inject = inject)
     else:
@@ -239,6 +236,10 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
     ################################################################
     log.info("Setting up to generate runsheet dataframe")
     configuration = load_config(config=config)
+
+    if configuration['NAME'] == "amplicon":
+            atexit.register(lambda: print("Warning: This script may not work as intended for amplicon sequencing datasets annotated before 2022. The Data Processing Team is actively working to address this issue.", file=sys.stderr))
+
     if schema is None:
         runsheet_schema = schemas.runsheet[config[0]]
     else:
@@ -523,7 +524,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
             )
 
         # if amplicon runsheet: make groups column
-        if config[0] == 'amplicon':
+        if configuration['NAME'] == "amplicon":
             factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
             df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
 
