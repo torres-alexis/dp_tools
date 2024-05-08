@@ -491,37 +491,55 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         runsheet_schema.validate(df_final)
 
         if assert_factor_values:
-            # ensure at least on Factor Value is extracted
+            # ensure at least one Factor Value is extracted
+            # Ensure that all column names are strings and check if any start with "Factor Value["
             assert (
-                len([col for col in df_final.columns if col.startswith("Factor Value[")]) != 0
+                len([col for col in df_final.columns if str(col).startswith("Factor Value[")]) != 0
             ), f"Must extract at least one factor value column but only has the following columns: {df_final.columns}"
 
-        
 
         ################################################################
         ################################################################
         # WRITE OUTPUT
         ################################################################
         ################################################################
-        # output file
+        
+        if configuration['NAME'] == "amplicon":
+            naming_column = "Library Selection"
+        # elif configuration['NAME'] == "metagenomics":
+        #     naming_column = "Library Kit"
+        else:
+            naming_column = None
+        
+        assay_file_suffix = ""
+
         if multiple_valid_assays:
-            library_selection = "_".join(df_final["Parameter Value[Library Selection]"].drop_duplicates().str.replace(" ", "_").astype(str))
+            if naming_column:
+                # Find columns that contain the substring naming_column
+                matching_columns = [col for col in df_final.columns if naming_column.lower() in col.lower()]
+                
+                col = matching_columns[0]
+                if naming_column not in col:
+                    print(f"Inconsistent naming found in {os.path.basename(assay_table_path)} column: {col}")
+                # Create file suffix from the matched column name, replacing spaces with underscores
+                assay_file_suffix = "_" + col.replace(" ", "_")
+            else:
+                assay_file_suffix = ""
+
             assay_table_file = os.path.basename(assay_table_path)
             assay_table_name, _ = os.path.splitext(assay_table_file)
-            output_fn = (
-            f"{accession}_{library_selection}_{assay_table_name}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
-        )
+            output_fn = f"{accession}{assay_file_suffix}_{assay_table_name}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
+
         else:
-            output_fn = (
-                f"{accession}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
-            )
+            output_fn = f"{accession}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
 
+        # Logging the final output path and DataFrame dimensions
+        log.info(f"Writing runsheet to: {output_fn} with {df_final.shape[0]} rows and {df_final.shape[1]} columns")
 
-        log.info(
-            f"Writing runsheet to: {output_fn} with {df_final.shape[0]} rows and {df_final.shape[1]} columns"
-        )
+        # Write the DataFrame to a CSV file
         df_final.to_csv(output_fn)
         final_dfs.append(df_final)
+
     if len(final_dfs) == 1:
         return final_dfs[0]  # Return the sole dataframe
     else:
