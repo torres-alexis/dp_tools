@@ -33,7 +33,7 @@ setup(
         "pandera",
         "click",
         "loguru",
-        "networkx"
+        "networkx>=3.3"
     ],
     setup_requires=[],
     tests_require=["pytest", "pytest-console_scripts"],
