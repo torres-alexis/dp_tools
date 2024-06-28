@@ -680,7 +680,7 @@ def utils_runsheet_to_expected_groups(
 ) -> Union[dict[str, str], dict[str, list[str]]]:
     df_rs = (
         pd.read_csv(runsheet, index_col="Sample Name", dtype=str)
-        .filter(regex="^Factor Value\[.*\]")
+        .filter(regex=r"^Factor Value\[.*\]")
         .sort_index()
     )  # using only Factor Value columns
 
@@ -736,7 +736,7 @@ def check_sample_table_for_correct_group_assignments(
     # data specific preprocess
     df_rs = (
         pd.read_csv(runsheet, index_col="Sample Name", dtype=str) # Ensure no factor value columns are misinterpreted as numeric
-        .filter(regex="^Factor Value\[.*\]")
+        .filter(regex=r"^Factor Value\[.*\]")
         .loc[df_sample.index]  # ensure only sampleTable groups are checked
         .sort_index()
     )  # using only Factor Value columns
