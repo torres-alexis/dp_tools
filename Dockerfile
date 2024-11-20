@@ -11,7 +11,7 @@ RUN groupadd -r genuser && \
     apt-get update && \
     apt-get install software-properties-common -y && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get install python3.10 python3.10-distutils curl samtools -y && \
+    apt-get install python3.10 python3.10-distutils curl samtools zip -y && \
     # ensure python3.10 is linked to python for shebang support
     ln -s /usr/bin/python3.10 /usr/bin/python
     
