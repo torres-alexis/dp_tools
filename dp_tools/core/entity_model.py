@@ -12,6 +12,8 @@ log = logging.getLogger(__name__)
 
 import pandas as pd
 import multiqc
+from multiqc import report
+import collections
 
 # MULTIQC MONKEY PATCH TO ADDRESS ISSUE: https://github.com/ewels/MultiQC/issues/1643
 multiqc.config.logger.hasHandlers = (
@@ -316,13 +318,7 @@ class Dataset:
 def multiqc_run_to_dataframes(paths: list[Path]) -> dict:
     try:
         mqc_ret = multiqc.run(
-            analysis_dir=paths,
-            quiet=True,
-            no_ansi=True,
-            no_report=True,
-            no_data_dir=True,
-            plots_interactive=True,  # ensure data is robustly populated (otherwise flat plots result in missing extractable data)
-            # module=[
+            *paths# module=[
             #     module.lower() for module in mqc_target["mqc_modules"]
             # ],  # module names here are always lowercase
         )
@@ -332,24 +328,26 @@ def multiqc_run_to_dataframes(paths: list[Path]) -> dict:
         )
 
     # extract and set general stats
-    general_stats_data = get_general_stats(mqc_ret)
+    general_stats_data = get_general_stats(report)
     general_stats = dict()
     for module, data in general_stats_data.items():
         general_stats[module] = pd.DataFrame(
-            data
+                        collections.OrderedDict([(k, list(v[0])[1][1]) for k, v in data.items()])
         ).T  # Transpose for consistency with plots dataframes, a samples are the index
 
     # extract and set plot data
-    df_mqc = format_plots_as_dataframe(mqc_ret)
+    # Format plots as a dataframe
+    df_mqc = format_plots_as_dataframe(report)
 
     plots: dict[str, dict[str, pd.DataFrame]] = defaultdict(dict)
-    for gb_name, df_gb in df_mqc.groupby(level=[0, 1], axis="columns"):
+    for gb_name, df_gb in df_mqc.T.groupby(level=[0,1]):
         # clean dataframe
         # remove row index (redundant with entity ownership)
         # df_gb.reset_index(inplace=True, drop=True)
 
         # remove top two levels of multindex (these are redundant with gb_name)
-        df_gb = df_gb.droplevel(level=[0, 1], axis="columns")
+        if isinstance(df_gb.columns, pd.MultiIndex) and df_gb.columns.nlevels > 2:
+            df_gb = df_gb.droplevel(level=[0, 1], axis="columns")
 
         # Second level of name may indicate subplot (e.g. adapter columns)
         # clean name if the second level is just a copy of the first

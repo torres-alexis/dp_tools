@@ -335,7 +335,7 @@ def check_for_outliers(
             df_diffs_in_std = df_diffs / df[mqc_key].std()
 
             # add to outlier tracker if over the threshold
-            for key, value in df_diffs_in_std.iteritems():
+            for key, value in df_diffs_in_std.items():
                 # if an outlier
                 if abs(value) > threshold["stdev_threshold"]:
                     # track it
