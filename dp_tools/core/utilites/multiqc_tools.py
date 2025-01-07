@@ -227,20 +227,16 @@ def __clean_mapped_data(mapped_data, messy_to_clean_map):
 def __parse_xy_line_graph_to_flat_dict(plot_data):
     # return messy sample:[{key (ylab):value}]
     all_flat_dict = dict()
-    if categories := plot_data["pconfig"].get("categories"):
-        log.debug("Plot has categorical data, extracting by category")
+    if plot_data["pconfig"].get("categories"):
         for line in plot_data["datasets"][0]['lines']:
-            sample_flat_dict = list()
             messy_s = line["name"]
-            sample_flat_dict = [
-                {
-                    (
-                        plot_data["pconfig"]["title"],
-                        plot_data["pconfig"]["title"],
-                        f"{categories[i_category]} {plot_data['pconfig']['xlab']} ({plot_data['pconfig']['ylab']})",
-                    ): val
-                }
-                for i_category, val in enumerate(line["pairs"])
+            sample_flat_dict = [{(
+            plot_data["pconfig"]["title"],
+            plot_data["pconfig"]["title"],
+            f"{category} {plot_data['pconfig']['xlab']} ({plot_data['pconfig']['ylab']})"
+            ): val
+            }
+            for category, val in line['pairs']
             ]
             all_flat_dict[messy_s] = sample_flat_dict
     else:
