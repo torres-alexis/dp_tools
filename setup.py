@@ -29,7 +29,7 @@ setup(
         "pandas>=2.1.2",
         "schema",
         "tabulate",
-        "multiqc==1.25",
+        "multiqc==1.26",
         "pandera",
         "click",
         "loguru",
