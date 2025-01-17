@@ -285,18 +285,26 @@ def extend_assay_dataframe(
     # Extract original column names
     orig_columns = list(df_original.columns)
     
+    # Filter out any new columns that already exist in original
+    filtered_new_data = {
+        k: v for k, v in new_column_data.items() 
+        if k not in orig_columns
+    }
+    
     # Define suffix for new columns
     suffix = '_new'
     
     # Create DataFrame for new data with suffixed column names
-    suffixed_new_columns = {f"{k}{suffix}": v for k, v in new_column_data.items()}
+    suffixed_new_columns = {f"{k}{suffix}": v for k, v in filtered_new_data.items()}
     df_new_data = pd.DataFrame(suffixed_new_columns)
     
     # Join the original dataframe with the new data with suffixed columns
     df_extended = df_original.join(df_new_data)
     
     # Reorder columns if necessary, adding suffixed new columns
-    sorted_new_columns = [f"{col}{suffix}" for col in sorted(new_column_order, key=lambda k: new_column_order[k])]
+    sorted_new_columns = [
+        f"{col}{suffix}" for col in sorted(filtered_new_data, key=lambda k: new_column_order[k])
+    ]
     df_extended = df_extended[orig_columns + sorted_new_columns]
 
     # Assertions for data integrity checks
