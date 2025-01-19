@@ -285,11 +285,21 @@ def extend_assay_dataframe(
     # Extract original column names
     orig_columns = list(df_original.columns)
     
-    # Filter out any new columns that already exist in original
-    filtered_new_data = {
-        k: v for k, v in new_column_data.items() 
-        if k not in orig_columns
-    }
+    # Create case mapping of original columns
+    orig_columns_lower = {col.lower(): col for col in orig_columns}
+    
+    # Filter out duplicates and fix capitalization
+    filtered_new_data = {}
+    for new_col, data in new_column_data.items():
+        new_col_lower = new_col.lower()
+        if new_col_lower in orig_columns_lower:
+            # If column exists with different capitalization, update original column name
+            old_col = orig_columns_lower[new_col_lower]
+            if old_col != new_col:
+                df_original.rename(columns={old_col: new_col}, inplace=True)
+        else:
+            # If column doesn't exist at all, add it to filtered data
+            filtered_new_data[new_col] = data
     
     # Define suffix for new columns
     suffix = '_new'
@@ -305,12 +315,11 @@ def extend_assay_dataframe(
     sorted_new_columns = [
         f"{col}{suffix}" for col in sorted(filtered_new_data, key=lambda k: new_column_order[k])
     ]
-    df_extended = df_extended[orig_columns + sorted_new_columns]
+    df_extended = df_extended[list(df_original.columns) + sorted_new_columns]
 
     # Assertions for data integrity checks
     assert len(df_extended.index) == len(df_original.index), "Index length did not stay the same"
-    assert len(df_extended.columns) > len(df_original.columns), "No new columns were added"
-
+    
     # Drop columns that are completely NA
     df_extended = df_extended.dropna(axis="columns", how="all")
 
