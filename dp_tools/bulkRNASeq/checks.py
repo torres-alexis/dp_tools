@@ -335,7 +335,7 @@ def check_for_outliers(
             df_diffs_in_std = df_diffs / df[mqc_key].std()
 
             # add to outlier tracker if over the threshold
-            for key, value in df_diffs_in_std.iteritems():
+            for key, value in df_diffs_in_std.items():
                 # if an outlier
                 if abs(value) > threshold["stdev_threshold"]:
                     # track it
@@ -680,7 +680,7 @@ def utils_runsheet_to_expected_groups(
 ) -> Union[dict[str, str], dict[str, list[str]]]:
     df_rs = (
         pd.read_csv(runsheet, index_col="Sample Name", dtype=str)
-        .filter(regex="^Factor Value\[.*\]")
+        .filter(regex=r"^Factor Value\[.*\]")
         .sort_index()
     )  # using only Factor Value columns
 
@@ -736,7 +736,7 @@ def check_sample_table_for_correct_group_assignments(
     # data specific preprocess
     df_rs = (
         pd.read_csv(runsheet, index_col="Sample Name", dtype=str) # Ensure no factor value columns are misinterpreted as numeric
-        .filter(regex="^Factor Value\[.*\]")
+        .filter(regex=r"^Factor Value\[.*\]")
         .loc[df_sample.index]  # ensure only sampleTable groups are checked
         .sort_index()
     )  # using only Factor Value columns
@@ -808,7 +808,7 @@ def check_contrasts_table_rows(contrasts_table: Path, **_) -> FlagEntry:
         return {g1, g2}
 
     bad_columns: dict[str, dict[str, set]] = dict()
-    for (col_name, col_series) in df_contrasts.iteritems():
+    for (col_name, col_series) in df_contrasts.items():
         expected_values = _get_groups_from_comparisions(col_name)
         if not expected_values == set(col_series):
             bad_columns[col_name] = {
@@ -877,28 +877,29 @@ def check_dge_table_sample_columns_exist(
 
 
 def check_dge_table_sample_columns_constraints(
-    dge_table: Path, samples: set[str], **_
+    dge_table: Path, samples: set, **_
 ) -> FlagEntry:
     MINIMUM_COUNT = 0
     # data specific preprocess
-    df_dge = pd.read_csv(dge_table)[samples]
+
+    df_dge = pd.read_csv(dge_table)[[str(s) for s in samples]]
 
     column_meets_constraints = df_dge.apply(
         lambda col: all(col >= MINIMUM_COUNT), axis="rows"
     )
 
     # check logic
-    contraint_description = f"All counts are greater or equal to {MINIMUM_COUNT}"
+    constraint_description = f"All counts are greater or equal to {MINIMUM_COUNT}"
     if all(column_meets_constraints):
         code = FlagCode.GREEN
         message = (
-            f"All values in columns: {samples} met constraint: {contraint_description}"
+            f"All values in columns: {samples} met constraint: {constraint_description}"
         )
     else:
         code = FlagCode.HALT
         message = (
             f"These columns {list(column_meets_constraints.index[~column_meets_constraints])} "
-            f"fail the contraint: {contraint_description}."
+            f"fail the constraint: {constraint_description}."
         )
     return {"code": code, "message": message}
 
@@ -1031,7 +1032,7 @@ def utils_common_constraints_on_dataframe(
 
         # limit to only columns of interest
         query_df = df[col_set]
-        for (colname, colseries) in query_df.iteritems():
+        for (colname, colseries) in query_df.items():
             # check non null constraint
             if col_constraints.pop("nonNull", False) and nonNull(colseries) == False:
                 issues["Failed non null constraint"].append(colname)

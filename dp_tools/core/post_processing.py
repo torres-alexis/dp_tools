@@ -224,7 +224,7 @@ def generate_new_column_dicts(
                 )
 
         # now remap those processing sample names to their orignal names,
-        # required for joining to orignal assay table
+        # required for fing to orignal assay table
         processing_to_orignal_mapping = pd.read_csv(
             dataset.data_assets["runsheet"].path, index_col="Sample Name"
         )["Original Sample Name"].to_dict()
@@ -264,7 +264,7 @@ def generate_new_column_dicts(
     #  joining by comma
     for header, header_wise in new_cols.items():
         for sample, sample_wise in header_wise.items():
-            new_value = ", ".join(sorted(list(new_cols[header][sample])))
+            new_value = ",".join(sorted(list(new_cols[header][sample])))
 
             new_cols[header][sample] = new_value
 
@@ -280,30 +280,51 @@ def generate_new_column_dicts(
 
 
 def extend_assay_dataframe(
-    df_orignal: pd.DataFrame, new_column_data: dict, new_column_order: dict
+    df_original: pd.DataFrame, new_column_data: dict, new_column_order: dict
 ):
-    # original columns in order
-    orig_columns = list(df_orignal.columns)
+    # Extract original column names
+    orig_columns = list(df_original.columns)
+    
+    # Create case mapping of original columns
+    orig_columns_lower = {col.lower(): col for col in orig_columns}
+    
+    # Filter out duplicates and fix capitalization
+    filtered_new_data = {}
+    for new_col, data in new_column_data.items():
+        new_col_lower = new_col.lower()
+        if new_col_lower in orig_columns_lower:
+            # If column exists with different capitalization, update original column name
+            old_col = orig_columns_lower[new_col_lower]
+            if old_col != new_col:
+                df_original.rename(columns={old_col: new_col}, inplace=True)
+        else:
+            # If column doesn't exist at all, add it to filtered data
+            filtered_new_data[new_col] = data
+    
+    # Define suffix for new columns
+    suffix = '_new'
+    
+    # Create DataFrame for new data with suffixed column names
+    suffixed_new_columns = {f"{k}{suffix}": v for k, v in filtered_new_data.items()}
+    df_new_data = pd.DataFrame(suffixed_new_columns)
+    
+    # Join the original dataframe with the new data with suffixed columns
+    df_extended = df_original.join(df_new_data)
+    
+    # Reorder columns if necessary, adding suffixed new columns
     sorted_new_columns = [
-        col for col in sorted(new_column_order, key=lambda k: new_column_order[k])
+        f"{col}{suffix}" for col in sorted(filtered_new_data, key=lambda k: new_column_order[k])
     ]
-    df_extended = df_orignal.join(pd.DataFrame(new_column_data))
+    df_extended = df_extended[list(df_original.columns) + sorted_new_columns]
 
-    # now reorder with both new and original columns
-    df_extended = df_extended[orig_columns + sorted_new_columns]
-
-    # guards
-    assert len(df_extended.index) == len(
-        df_orignal.index
-    ), f"After join, index length did not stay the same: old_length-{len(df_orignal.index)} new_length-{len(df_extended.index)}"
-    assert len(df_extended.columns) > len(
-        df_orignal.columns
-    ), f"After join, no new columns were added"
-
-    # dropped NA columns
-    # these often exist due to an old requirement to include ontology columns
-    # even when no such ontology values were present
+    # Assertions for data integrity checks
+    assert len(df_extended.index) == len(df_original.index), "Index length did not stay the same"
+    
+    # Drop columns that are completely NA
     df_extended = df_extended.dropna(axis="columns", how="all")
+
+    # Remove suffix from new column names
+    df_extended.columns = [col.replace(suffix, '') for col in df_extended.columns]
 
     return df_extended
 
