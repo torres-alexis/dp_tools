@@ -1,0 +1,8 @@
+# RNA-seq plugin configuration for dp_tools
+
+# API URL for fetching RNA-seq related datasets
+api_url: "https://osdr.nasa.gov/osdr/data/search?ffield=Study+Assay+Technology+Type&fvalue=RNA+Sequencing+%28RNA-Seq%29&size=5000"
+
+# Additional configuration options can be added here
+description: "RNA sequencing (RNA-seq) assay plugin for GeneLab datasets"
+version: "1.0.0" 
