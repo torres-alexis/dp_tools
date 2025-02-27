@@ -1,8 +1,8 @@
 """
-A simple file mover that uses component-specific layout definitions.
+File organization utility that uses component-specific layout definitions.
 
 This module detects the assay type and component, then uses the appropriate 
-layout definitions from each component to move files to their correct locations.
+layout definitions from each component to organize files into their correct locations.
 """
 import os
 import sys
@@ -15,22 +15,26 @@ from typing import Dict, List, Union, Optional, Any, Callable
 
 class Mover:
     """
-    File mover that uses component-specific layout definitions.
+    File organization utility that uses component-specific layout definitions.
     """
     
-    def __init__(self, assay_type: str):
+    def __init__(self, assay_type: str, plugin_dir: Optional[str] = None):
         """
         Initialize mover for a specific assay type.
         
         Args:
             assay_type: The type of assay (e.g., 'rnaseq', 'atacseq')
+            plugin_dir: Directory containing alternate assay implementation
         """
         self.assay_type = assay_type
         self.component_modules = {}
+        self.plugin_dir = plugin_dir
     
     def _load_component_module(self, component: str):
         """
         Load a component module dynamically.
+        
+        Will first try to load from the built-in assays, then from plugin directory if specified.
         
         Args:
             component: The component name (e.g., 'raw_reads', 'trimmed_reads')
@@ -38,12 +42,31 @@ class Mover:
         Returns:
             The loaded module or None if not found
         """
+        # First try built-in modules unless we have a plugin
+        if not self.plugin_dir:
+            try:
+                module_path = f"dp_tools.assays.{self.assay_type}.{component}"
+                component_module = importlib.import_module(module_path)
+                return component_module
+            except ImportError as e:
+                raise ValueError(f"Could not load component '{component}' for assay type '{self.assay_type}': {str(e)}")
+        
+        # Using a plugin directory
+        plugin_path = Path(self.plugin_dir) / f"{component}.py"
+        if not plugin_path.exists():
+            raise ValueError(f"Could not find component '{component}' in plugin directory: {self.plugin_dir}")
+            
         try:
-            module_path = f"dp_tools.assays.{self.assay_type}.{component}"
-            component_module = importlib.import_module(module_path)
+            # Dynamically load the module from the plugin path
+            spec = importlib.util.spec_from_file_location(
+                f"dp_tools_plugin.{component}", 
+                plugin_path
+            )
+            component_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(component_module)
             return component_module
-        except ImportError as e:
-            raise ValueError(f"Could not load component '{component}' for assay type '{self.assay_type}': {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Failed to load plugin {plugin_path}: {e}")
     
     def move_files(self, 
                   component: str, 
@@ -52,17 +75,17 @@ class Mover:
                   dry_run: bool = False,
                   use_symlinks: bool = False) -> Dict[str, List[Path]]:
         """
-        Move files to their proper locations based on the component-specific layout.
+        Organize files to their proper locations based on the component-specific layout.
         
         Args:
             component: The component of the assay (e.g., 'raw_reads', 'trimmed_reads')
-            files: List of files to move
+            files: List of files to organize
             output_dir: Base output directory
             dry_run: If True, only print what would be done
             use_symlinks: If True, create symbolic links instead of copying files
             
         Returns:
-            Dictionary of moved files by target directory
+            Dictionary of organized files by target directory
         """
         # Load the component module if not already loaded
         if component not in self.component_modules:
@@ -89,13 +112,18 @@ class Mover:
                     # Try simpler structure STRUCTURE[component]["outputs"]
                     component_structure = structure[component]["outputs"]
                 except KeyError:
-                    raise ValueError(f"Could not find layout for component '{component}' in structure")
+                    # Simplest structure - direct mapping
+                    component_structure = structure
         else:
-            # For other assays, use a simpler structure lookup
-            try:
-                component_structure = structure[self.assay_type][component]["outputs"]
-            except KeyError:
-                raise ValueError(f"Could not find layout for component '{component}' in structure")
+            # For other assays, use the structure directly if it's simple
+            if isinstance(structure, dict) and all(isinstance(v, str) for v in structure.values()):
+                component_structure = structure
+            else:
+                # Try to extract from a more complex structure
+                try:
+                    component_structure = structure[self.assay_type][component]["outputs"]
+                except KeyError:
+                    raise ValueError(f"Could not find layout for component '{component}' in structure")
         
         output_dir = Path(output_dir)
         
@@ -189,12 +217,13 @@ def move_files(
     files: List[Union[str, Path]],
     output_dir: Union[str, Path],
     dry_run: bool = False,
-    use_symlinks: bool = False
+    use_symlinks: bool = False,
+    plugin_dir: Optional[str] = None
 ) -> Dict[str, List[Path]]:
     """
-    Core implementation for moving files to their proper locations based on component structure.
+    Core implementation for organizing files based on component structure.
     
-    This function is the main implementation behind the 'dpt mover' CLI command. It:
+    This function is the main implementation behind the 'dp_tools move' CLI command. It:
     1. Dynamically loads the component module (e.g., dp_tools.assays.rnaseq.raw_reads)
     2. Reads the STRUCTURE dictionary from that module
     3. Determines the correct output directory for each file based on its type
@@ -204,33 +233,24 @@ def move_files(
     file types to target directories. For example:
     
     STRUCTURE = {
-        "rnaseq": {
-            "microbes": {
-                "components": {
-                    "raw_reads": {
-                        "outputs": {
-                            "raw_fastq": "00-RawData/Fastq",
-                            "raw_fastqc": "00-RawData/FastQC_Reports",
-                            "raw_multiqc": "00-RawData/FastQC_Reports"
-                        }
-                    }
-                }
-            }
-        }
+        "raw_fastq": "01-RawData/Fastq",
+        "raw_fastqc": "01-RawData/QC/FastQC",
+        "raw_multiqc": "01-RawData/QC/MultiQC"
     }
     
     Args:
         assay_type: The type of assay (e.g., 'rnaseq', 'atacseq')
         component: The component of the assay (e.g., 'raw_reads', 'trimmed_reads')
-        files: List of files to move
+        files: List of files to organize
         output_dir: Base output directory
         dry_run: If True, only print what would be done
         use_symlinks: If True, create symbolic links instead of copying files
+        plugin_dir: Directory containing alternate assay implementation
         
     Returns:
-        Dictionary of moved files by target directory
+        Dictionary of organized files by target directory
     """
-    mover = Mover(assay_type)
+    mover = Mover(assay_type, plugin_dir)
     return mover.move_files(component, files, output_dir, dry_run, use_symlinks)
 
 
@@ -238,6 +258,7 @@ def stage_files(
     assay_type: str, 
     component: str, 
     output_dir: Union[str, Path],
+    plugin_dir: Optional[str] = None,
     **file_paths
 ) -> Dict[str, List[Path]]:
     """
@@ -251,6 +272,7 @@ def stage_files(
         assay_type: The type of assay (e.g., 'rnaseq', 'atacseq')
         component: The component of the assay (e.g., 'raw_reads', 'trimmed_reads')
         output_dir: Base output directory
+        plugin_dir: Directory containing alternate assay implementation
         **file_paths: Keyword arguments mapping file types to source paths
         
     Returns:
@@ -275,5 +297,6 @@ def stage_files(
         files=all_files,
         output_dir=output_dir,
         dry_run=False,
-        use_symlinks=True
-    )
+        use_symlinks=True,
+        plugin_dir=plugin_dir
+    ) 

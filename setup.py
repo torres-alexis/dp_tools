@@ -50,7 +50,7 @@ setup(
     tests_require=["pytest", "pytest-console_scripts"],
     entry_points={
         "console_scripts": [
-            "dpt=dp_tools.cli.main:dpt",
+            "dp_tools=dp_tools.cli.main:dp_tools",
         ]
     }
 ) 

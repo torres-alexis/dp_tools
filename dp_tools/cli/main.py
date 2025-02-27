@@ -7,43 +7,68 @@ import glob
 from pathlib import Path
 import click
 
-from dp_tools.utils.mover import move_files
+from dp_tools.utils.move import move_files
 
 
 @click.group()
-def dpt():
-    """Data processing tools for NGS pipelines."""
+def dp_tools():
+    """Tools used for DP tasks"""
     pass
 
 
-@dpt.command()
-@click.option("--assay", required=True, help="Assay type (e.g., rnaseq, atacseq)")
+class MutuallyExclusiveOption(click.Option):
+    def __init__(self, *args, **kwargs):
+        self.mutually_exclusive = set(kwargs.pop('mutually_exclusive', []))
+        help_text = kwargs.get('help', '')
+        if self.mutually_exclusive:
+            ex_str = ', '.join(self.mutually_exclusive)
+            kwargs['help'] = f"{help_text} NOTE: This option is mutually exclusive with {ex_str}."
+        super(MutuallyExclusiveOption, self).__init__(*args, **kwargs)
+
+    def handle_parse_result(self, ctx, opts, args):
+        current_opt = self.name in opts
+        for mutex_opt in self.mutually_exclusive:
+            if mutex_opt in opts:
+                if current_opt:
+                    raise click.UsageError(
+                        f"Illegal usage: {self.name} is mutually exclusive with {mutex_opt}."
+                    )
+        return super(MutuallyExclusiveOption, self).handle_parse_result(ctx, opts, args)
+
+
+@dp_tools.command()
+@click.option("--assay", cls=MutuallyExclusiveOption, mutually_exclusive=["plugin"],
+              help="Built-in assay type to use (e.g., rnaseq, atacseq)")
+@click.option("--plugin", cls=MutuallyExclusiveOption, mutually_exclusive=["assay"],
+              type=click.Path(exists=True, file_okay=False), 
+              help="Directory containing assay configs (replaces --assay)")
 @click.option("--component", required=True, help="Component (e.g., raw_reads, trimmed_reads)")
 @click.option("--outdir", required=True, type=click.Path(), help="Output directory")
 @click.option("--input", "-i", multiple=True, help="Input files or directories in format 'key:path'. Can be used multiple times.")
 @click.option("--use-symlinks", is_flag=True, default=True, help="Create symbolic links instead of copying files")
 @click.option("--dry-run", is_flag=True, help="Only print what would be done")
-def mover(assay, component, outdir, input, use_symlinks, dry_run):
+def move(assay, plugin, component, outdir, input, use_symlinks, dry_run):
     """
     Move files according to assay-specific layouts.
     
-    This command is a CLI wrapper around the move_files function in dp_tools.utils.mover.
-    It processes command line arguments, handles file patterns, and calls the core
-    implementation to organize files according to component-specific structure definitions.
-    
-    The component (e.g., raw_reads) defines the directory structure where files will be placed
-    based on their type. Each component has a STRUCTURE dictionary that maps file types to 
-    output directories.
+    This command organizes files according to the structure defined by either:
+    1. A built-in assay type (--assay), or
+    2. A custom plugin directory (--plugin)
     
     Examples:
-        # Move raw reads files
-        dpt mover --assay rnaseq --component raw_reads --outdir ./results \\
+        # Using built-in assay config
+        dp_tools move --assay rnaseq --component raw_reads --outdir ./results \\
             -i raw_fastq:./fastq/ -i raw_fastqc:./fastqc/ -i raw_multiqc:./multiqc/
             
-        # Use glob patterns to match files
-        dpt mover --assay rnaseq --component raw_reads --outdir ./results \\
-            -i raw_fastq:"./*_R?.fastq.gz" -i raw_fastqc:"./*_fastqc.*"
+        # Using custom plugin directory
+        dp_tools move --plugin ./my_assays --component raw_reads --outdir ./results \\
+            -i raw_fastq:./fastq/ -i raw_fastqc:./fastqc/
     """
+    # Ensure either assay or plugin is provided
+    if not assay and not plugin:
+        click.echo("Error: Either --assay or --plugin must be specified", err=True)
+        sys.exit(1)
+    
     # Parse input arguments
     file_paths = {}
     for item in input:
@@ -82,14 +107,24 @@ def mover(assay, component, outdir, input, use_symlinks, dry_run):
     click.echo(f"Found {len(all_files)} files to move")
     
     try:
+        # If using plugin, configure plugin path and assay name
+        if plugin:
+            plugin_dir = plugin
+            # Use the plugin directory name as the assay type
+            plugin_assay = os.path.basename(os.path.normpath(plugin))
+        else:
+            plugin_dir = None
+            plugin_assay = assay
+            
         # Move files using assay-specific layout
         result = move_files(
-            assay_type=assay,
+            assay_type=plugin_assay,
             component=component,
             files=all_files,
             output_dir=outdir,
             dry_run=dry_run,
-            use_symlinks=use_symlinks
+            use_symlinks=use_symlinks,
+            plugin_dir=plugin_dir
         )
         
         # Print summary
@@ -112,5 +147,16 @@ def mover(assay, component, outdir, input, use_symlinks, dry_run):
         sys.exit(1)
 
 
+@dp_tools.command()
+def version():
+    """Display the current version of dp_tools."""
+    import pkg_resources
+    try:
+        version = pkg_resources.get_distribution("dp_tools").version
+        click.echo(f"dp_tools version {version}")
+    except pkg_resources.DistributionNotFound:
+        click.echo("dp_tools version unknown (package not installed)")
+
+
 if __name__ == "__main__":
-    dpt() 
+    dp_tools() 
