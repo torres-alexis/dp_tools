@@ -1,0 +1,3 @@
+include LICENSE
+include README.md
+recursive-include dp_tools *.json *.yaml *.yml *.txt 
