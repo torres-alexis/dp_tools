@@ -13,9 +13,11 @@ from pathlib import Path
 import click
 import requests
 import json
+import logging
 
 from dp_tools.utils.move import move_files
 from dp_tools.utils.accession import get_osd_and_glds, DEFAULT_API_URL
+from dp_tools.utils.logging import Status, ValidationLogger
 
 
 @click.group()
@@ -482,6 +484,112 @@ def get_isa(accession_arg, accession, output_dir, force, api_url, plugin, verbos
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         sys.exit(1)
+
+
+@dp_tools.command()
+@click.option("--plugin", required=True,
+              type=click.Path(exists=True), 
+              help="Path to plugin directory or name of built-in plugin")
+@click.option("--runsheet", required=True,
+              type=click.Path(exists=True, dir_okay=False),
+              help="Path to runsheet CSV file")
+@click.option("--outdir", required=True, 
+              type=click.Path(), 
+              help="Output directory for validation results")
+@click.option("--components", multiple=True,
+              help="Components to validate (e.g., raw_reads, star_alignment, bowtie2_alignment). Can be specified multiple times.")
+@click.option("--assay-suffix", default="_GLbulkRNAseq",
+              help="Suffix for assay files (default: _GLbulkRNAseq)")
+@click.option("--log-file", type=click.Path(),
+              help="Path to log file (default: <outdir>/vv.log)")
+@click.option("--csv-file", type=click.Path(),
+              help="Path to CSV results file (default: <outdir>/VV_log.csv)")
+def validate(plugin, runsheet, outdir, components, assay_suffix, log_file, csv_file):
+    """Validate pipeline outputs according to expectations."""
+    # Initialize standard output logging
+    log_file = log_file or Path(outdir) / "vv.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+    
+    # Initialize validation logger
+    csv_file = csv_file or Path(outdir) / "VV_log.csv"
+    logger = ValidationLogger(log_file=csv_file)
+    
+    # Handle different plugin types
+    plugin_path = Path(plugin)
+    if not plugin_path.exists():
+        # Check if it's a built-in plugin name
+        builtin_plugin_path = Path(__file__).parent.parent.parent / "plugins" / plugin
+        if builtin_plugin_path.exists():
+            plugin_path = builtin_plugin_path
+        else:
+            raise click.UsageError(f"Plugin '{plugin}' not found")
+    
+    # Determine which components to validate
+    if not components:
+        # If no components specified, validate all available components
+        config_path = plugin_path / "config.yaml"
+        if config_path.exists():
+            import yaml
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                if 'components' in config:
+                    components = config['components']
+                else:
+                    # Default to raw_reads if no components defined
+                    components = ['raw_reads']
+        else:
+            # Default to raw_reads if no config
+            components = ['raw_reads']
+    
+    click.echo(f"Starting validation with plugin: {plugin_path.name}")
+    click.echo(f"Components to validate: {', '.join(components)}")
+    click.echo("Data type (paired-end vs single-end) will be determined from the runsheet")
+        
+    # Process each component
+    for component in components:
+        # Import the validation function for the component
+        component_module = plugin_path / f"{component}.py"
+        if component_module.exists():
+            # Dynamically import the module
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                f"{plugin_path.name}.{component}", component_module)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # Check if validate_{component} function exists
+            validate_func_name = f"validate_{component}"
+            if hasattr(module, validate_func_name):
+                validate_func = getattr(module, validate_func_name)
+                
+                # Call the validation function with appropriate arguments
+                click.echo(f"Validating {component} component...")
+                results = validate_func(
+                    outdir=Path(outdir),
+                    runsheet=Path(runsheet),
+                    assay_suffix=assay_suffix,
+                    logger=logger
+                )
+                
+                # Check for any HALT status
+                if logger.get_status() == Status.HALT:
+                    click.echo(f"Validation halted due to critical errors")
+                    sys.exit(1)
+            else:
+                click.echo(f"Warning: No validation function found for component {component}")
+        else:
+            click.echo(f"Warning: Component module {component}.py not found in plugin directory")
+    
+    # Output final validation status
+    click.echo(f"Validation completed with status: {logger.get_status().value}")
+    click.echo(f"Detailed results written to {csv_file}")
 
 
 if __name__ == "__main__":

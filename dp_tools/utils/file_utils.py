@@ -597,4 +597,52 @@ def check_samples_in_multiqc(multiqc_zip_path: Union[str, Path], samples: List[s
     except Exception as e:
         results["error"] = str(e)
     
-    return results 
+    return results
+
+
+def get_paired_end_from_runsheet(runsheet_path: Union[str, Path]) -> bool:
+    """
+    Get paired-end status from runsheet.
+    
+    For RNA-seq data, simply checks the 'paired_end' column in the runsheet.
+    
+    Args:
+        runsheet_path: Path to runsheet CSV file
+        
+    Returns:
+        bool: True if paired-end, False if single-end
+        
+    Raises:
+        ValueError: If paired-end status cannot be determined from the runsheet
+    """
+    try:
+        runsheet = Path(runsheet_path)
+        if runsheet.suffix.lower() == '.csv':
+            df = pd.read_csv(runsheet)
+        elif runsheet.suffix.lower() == '.tsv':
+            df = pd.read_csv(runsheet, sep='\t')
+        else:
+            df = pd.read_csv(runsheet)  # Try default CSV parsing
+        
+        # Check specifically for 'paired_end' column
+        if 'paired_end' not in df.columns:
+            raise ValueError(
+                f"Required 'paired_end' column not found in runsheet. "
+                f"Available columns: {', '.join(df.columns)}"
+            )
+        
+        # Get the first value
+        value = df['paired_end'].iloc[0]
+        
+        # Use equality check not identity check
+        if value == True:
+            return True
+        elif value == False:
+            return False
+        else:
+            raise ValueError(f"paired_end value must be exactly True or False, got: {value} (type: {type(value).__name__})")
+            
+    except Exception as e:
+        if isinstance(e, ValueError) and "Required 'paired_end' column not found" in str(e):
+            raise e
+        raise ValueError(f"Failed to extract paired-end status from runsheet: {str(e)}") 
