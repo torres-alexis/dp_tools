@@ -14,12 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for cases where GLDS-### doesn't map directly to OSD-### (e.g., GLDS-570 → OSD-576)
 - Updated dependencies to latest versions
 - Modernized project structure with pyproject.toml
+- Changed OSD get-samples command to automatically select assay file when only one is available
 
 ### Fixed
 
 - importlib.resources usage updated to work with newer Python versions
+- Fixed ISA download function to correctly handle both GLDS and OSD accessions with proper regex pattern matching
+- Fixed column name reference in ISA download function from 'filename' to 'file_name' to match the DataFrame structure
+- Improved remote URL handling for downloading ISA archives
 - Missing parameters in check_model.py validation protocol
 - Replaced logging with loguru consistently throughout codebase
+- Improved test reliability with better mocking approach for file pattern matching
 
 ## [1.3.5]
 

@@ -41,9 +41,10 @@ dev = [
 ]
 
 [project.scripts]
-dpt-get-isa-archive = "dp_tools.glds_api.isa:main"
-dpt-isa-to-runsheet = "dp_tools.scripts.convert:main"
-dpt = "dp_tools.scripts.top_level_cli:cli"
+dp_tools = "dp_tools.scripts.top_level_cli:main"
+dpt = "dp_tools.scripts.top_level_cli:main"
+dpt-get-isa-archive = "dp_tools.scripts.isa_cli:deprecated_get_isa_archive"
+dpt-isa-to-runsheet = "dp_tools.scripts.isa_cli:deprecated_isa_to_runsheet"
 
 [tool.setuptools]
 include-package-data = true

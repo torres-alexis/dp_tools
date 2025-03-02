@@ -95,20 +95,26 @@ def get_table_of_files(accession: str) -> pd.DataFrame:
         except Exception as e:
             raise ValueError(f"Error retrieving files for {accession}: {str(e)}")
     else:
-        raise ValueError(f"Invalid accession format: {accession}. Must start with 'OSD-' or 'GLDS'.")
+        raise ValueError(f"Invalid accession format: {accession}. Must start with 'OSD-' or 'GLDS-'.")
 
 def find_matching_filenames(accession: str, filename_pattern: str) -> list[str]:
-    """Returns list of file names that match the provided regex pattern.
+    """Returns list of file names that match the provided pattern.
 
-    :param accession: GLDS accession ID, e.g. 'GLDS-194'
+    :param accession: GLDS or OSD accession ID, e.g. 'GLDS-194' or 'OSD-123'
     :type accession: str
-    :param filename_pattern: Regex pattern to query against file names
+    :param filename_pattern: Glob pattern to query against file names (e.g. '*.fastq.gz')
     :type filename_pattern: str
-    :return: List of file names that match the regex
+    :return: List of file names that match the pattern
     :rtype: list[str]
     """
+    import re
+    import fnmatch
+    
+    # Convert glob pattern to regex pattern
+    regex_pattern = fnmatch.translate(filename_pattern)
+    
     df = get_table_of_files(accession)
-    return df.loc[df['file_name'].str.contains(filename_pattern), 'file_name'].to_list()
+    return df.loc[df['file_name'].str.contains(regex_pattern, regex=True), 'file_name'].to_list()
 
 def retrieve_file_url(accession: str, filename: str) -> str:
     """Retrieve file URL associated with a GLDS accesion ID
