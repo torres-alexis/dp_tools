@@ -3,9 +3,8 @@ from pathlib import Path
 from dp_tools.glds_api.commons import retrieve_file_url, find_matching_filenames
 
 import requests
-import logging
-
-log = logging.getLogger(__name__)
+from loguru import logger as log
+import sys
 
 
 def _parse_args():
@@ -50,7 +49,11 @@ def download_isa(accession: str) -> str:
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    """Main function."""
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+    
     args = _parse_args()
     download_isa(args.accession)
 

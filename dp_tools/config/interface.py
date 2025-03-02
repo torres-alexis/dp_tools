@@ -3,8 +3,7 @@ from typing import Union
 from pathlib import Path
 import os
 import yaml
-import logging
-log = logging.getLogger(__name__)
+from loguru import logger as log
 from importlib.metadata import files
 import functools
 

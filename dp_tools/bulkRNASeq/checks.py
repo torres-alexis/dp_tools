@@ -3,7 +3,7 @@ import copy
 import enum
 import gzip
 import itertools
-import logging
+from loguru import logger as log
 import math
 from pathlib import Path
 from statistics import mean
@@ -15,8 +15,6 @@ from importlib.metadata import files
 import pandas as pd
 
 from dp_tools.core.entity_model import Dataset, Sample, multiqc_run_to_dataframes
-
-log = logging.getLogger(__name__)
 
 from dp_tools.core.check_model import FlagCode, FlagEntry, FlagEntryWithOutliers
 

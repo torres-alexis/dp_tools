@@ -23,12 +23,12 @@ Additionally, the following Assay specific functionality is packaged:
 
 #### Using Containers (e.g. Singularity)
 
-This library is available for usage as prebuilt images located at [quay.io](https://quay.io/repository/j_81/dp_tools?tab=tags)
-> singularity shell quay.io/repository/j_81/dp_tools
+This library is available for usage as prebuilt images located at [quay.io](https://quay.io/repository/nasa_genelab/dp_tools?tab=tags)
+> singularity shell quay.io/repository/nasa_genelab/dp_tools
 
 #### Using pip
 
-> pip install git+https://github.com/J-81/dp_tools.git@1.3.5
+> pip install git+https://github.com/torres-alexis/dp_tools.git@1.3.6
 
 ## CLI Commands
 
@@ -74,7 +74,7 @@ options:
 ``` bash
 # First two lines tell Singularity to run the dp_tools container in the current working directory
 singularity exec --bind $(pwd):$(pwd) \\
-  docker://quay.io/j_81/dp_tools:1.3.5 \\
+  docker://quay.io/nasa_genelab/dp_tools:1.3.6 \\
   dpt-get-isa-archive --accession GLDS-168 # command we want to run
 ```
 
@@ -82,7 +82,7 @@ singularity exec --bind $(pwd):$(pwd) \\
 ``` bash
 # First two lines tell Singularity to run the dp_tools container in the current working directory
 singularity exec --bind $(pwd):$(pwd) \\
-  docker://quay.io/j_81/dp_tools:1.3.5 \\
+  docker://quay.io/nasa_genelab/dp_tools:1.3.6 \\
   dpt-isa-to-runsheet --accession GLDS-168 \\
                       --config-type bulkRNASeq \\
                       --config-version Latest \\
@@ -90,4 +90,4 @@ singularity exec --bind $(pwd):$(pwd) \\
 ```
 
 """
-__version__ = "1.3.5"
+__version__ = "1.3.6"

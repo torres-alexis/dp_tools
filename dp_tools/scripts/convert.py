@@ -1,3 +1,8 @@
+"""
+A script that converts ISA Archives into a specific format based on a provided configuration file
+
+Optional: Has provisions for adding in extra fields as well
+"""
 import argparse
 from pathlib import Path
 import re
@@ -14,12 +19,11 @@ from dp_tools import plugin_api
 import pandas as pd
 from pandera import DataFrameSchema
 
-import logging
 import os
 import sys
 import atexit
 
-log = logging.getLogger(__name__)
+from loguru import logger as log
 
 
 class BulkRNASeqMetadataComponent:
@@ -119,8 +123,16 @@ def _parse_args():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = _parse_args()
+
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+
+    # Ensure we have a valid config
+    if args.config_version is None:
+        args.config_version = "Latest"
+
     inject = {key_value_pair.split("=")[0]:key_value_pair.split("=")[1] for key_value_pair in args.inject} # Format key value pairs
 
     if args.plugin_dir == False:
