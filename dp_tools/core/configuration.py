@@ -1,13 +1,11 @@
 import os
 from pathlib import Path
 from typing import Union
-import pkg_resources
+import importlib.resources as pkg_resources
 from warnings import warn
+from loguru import logger as log
 
 import yaml
-import logging
-
-log = logging.getLogger(__name__)
 
 
 def load_full_config(config: Union[str, Path]) -> dict:
@@ -22,7 +20,7 @@ def load_full_config(config: Union[str, Path]) -> dict:
         )
         log.info(f"Loading full config (relative to package): {resolved_config_path}")
         conf_full = yaml.safe_load(
-            pkg_resources.resource_string(__name__, resolved_config_path)
+            pkg_resources.files(__name__).joinpath(resolved_config_path).read_bytes()
         )
     elif isinstance(config, Path):
         log.info(f"Loading config (direct path): {config}")
@@ -54,14 +52,13 @@ def load_config(config: Union[tuple[str, str], Path]) -> dict:
             )
             log.info(f"Loading config (relative to package): {resolved_config_path}")
             conf_full = yaml.safe_load(
-                pkg_resources.resource_string(__name__, resolved_config_path)
+                pkg_resources.files(__name__).joinpath(resolved_config_path).read_bytes()
             )
         case Path():
             log.info(f"Loading config (direct path): {config}")
-            with config.open() as f:
-                conf_full = yaml.safe_load(f)
+            conf_full = yaml.safe_load(config.open())
         case _:
-            raise ValueError(f"Invalid config type: {type(config)}. Expected either a tuple (legacy builtin configurations) or Path object.")
+            raise ValueError(f"Cannot load config from {config}")
 
     log.debug(f"Final config loaded: {conf_full}")
 

@@ -4,11 +4,11 @@ from pathlib import Path
 from string import Formatter
 import uuid
 from typing import TypedDict, Union
-import logging
+from loguru import logger as log
+import abc
+from enum import Enum, auto
 
 from dp_tools.core.check_model import FlagCode
-
-log = logging.getLogger(__name__)
 
 import pandas as pd
 import multiqc

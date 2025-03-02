@@ -2,6 +2,7 @@ import enum
 from pathlib import Path
 import sys
 import requests
+import os
 
 import click
 from loguru import logger
@@ -52,6 +53,11 @@ def get_samples(osd_id, output):
     logger.info(f"Fetching information for {osd_id}")
 
     isa_path = isa.download_isa(accession = osd_id)
+    
+    # Check if ISA file was found
+    if isa_path is None:
+        logger.error(f"No ISA archive found for {osd_id}. Cannot extract samples.")
+        sys.exit(1)
 
     isa_sample_and_assay_files = [f for f in isa_archive.fetch_isa_files(Path(isa_path)) if any([f.name.startswith("a_"), f.name.startswith("s_")])]
     isa_sample_and_assay_files.sort()
@@ -59,15 +65,22 @@ def get_samples(osd_id, output):
     logger.info(f"Found these ISA assay files: {[f.name for f in isa_sample_and_assay_files]}")
 
     isa_sample_and_assay_files = {i:f for i,f in enumerate(isa_sample_and_assay_files)}
-
-    for i,f in isa_sample_and_assay_files.items():
-        click.echo(f"{i}: {f.name}", err=True)
-    selection = click.prompt("Select an table file by number", type=int, err=True)
-    if selection not in isa_sample_and_assay_files:
-        raise ValueError("Invalid choice!")
+    
+    # Check if there's only one assay file, and if so, select it automatically
+    assay_files = [f for i, f in isa_sample_and_assay_files.items() if f.name.startswith("a_")]
+    if len(assay_files) == 1:
+        target_file = assay_files[0]
+        logger.info(f"Automatically selected the only assay file: {target_file.name}")
     else:
-        target_file = isa_sample_and_assay_files[selection]
-        logger.info(f"Selected {target_file}")
+        # If multiple files, prompt for selection
+        for i,f in isa_sample_and_assay_files.items():
+            click.echo(f"{i}: {f.name}", err=True)
+        selection = click.prompt("Select an table file by number", type=int, err=True)
+        if selection not in isa_sample_and_assay_files:
+            raise ValueError("Invalid choice!")
+        else:
+            target_file = isa_sample_and_assay_files[selection]
+            logger.info(f"Selected {target_file}")
     
     samples = [s.strip() for s in pd.read_csv(target_file, sep="\t")["Sample Name"]]
 
@@ -177,8 +190,12 @@ def check_if(osd_id, includes_assay_type, includes_assay_type_on_platform, inclu
             sys.exit(-1)
     finally:
         # Teardown isa path regardless
-        logger.info(f"Clean up: Removing {isa_path}")
-        Path(isa_path).unlink()
+        if isa_path is not None:
+            logger.info(f"Clean up: Removing {isa_path}")
+            try:
+                os.remove(isa_path)
+            except Exception as e:
+                logger.warning(f"Failed to clean up {isa_path}: {e}")
 
 
 osd.add_command(download_files)

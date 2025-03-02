@@ -1,3 +1,8 @@
+"""
+A script that converts ISA Archives into a specific format based on a provided configuration file
+
+Optional: Has provisions for adding in extra fields as well
+"""
 import argparse
 from pathlib import Path
 import re
@@ -14,12 +19,11 @@ from dp_tools import plugin_api
 import pandas as pd
 from pandera import DataFrameSchema
 
-import logging
 import os
 import sys
 import atexit
 
-log = logging.getLogger(__name__)
+from loguru import logger as log
 
 
 class BulkRNASeqMetadataComponent:
@@ -119,8 +123,16 @@ def _parse_args():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = _parse_args()
+
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+
+    # Ensure we have a valid config
+    if args.config_version is None:
+        args.config_version = "Latest"
+
     inject = {key_value_pair.split("=")[0]:key_value_pair.split("=")[1] for key_value_pair in args.inject} # Format key value pairs
 
     if args.plugin_dir == False:
@@ -544,6 +556,42 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         return final_dfs[0]  # Return the sole dataframe
     else:
         return final_dfs  # Return the list of dataframes
+
+
+def convert_isa_to_runsheet(accession: str, config_type: str, config_version: str, isa_archive: str, output_dir: str = "."):
+    """Converts an ISA archive to a runsheet.
+    
+    This is the main function exposed to the CLI.
+    
+    Args:
+        accession: GLDS or OSD accession number, e.g., GLDS-194 or OSD-194
+        config_type: Packaged config type to use (e.g., bulkRNASeq, microarray)
+        config_version: Packaged config version to use (e.g., Latest)
+        isa_archive: Path to the ISA archive file
+        output_dir: Directory to save the output runsheet to. Defaults to current directory.
+    """
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+    
+    # Change to output directory
+    original_dir = Path.cwd()
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True, parents=True)
+    os.chdir(output_path)
+    
+    try:
+        # Validate config_type
+        if config_type not in SUPPORTED_CONFIG_TYPES:
+            log.error(f"Invalid config type: {config_type}. Supported types: {SUPPORTED_CONFIG_TYPES}")
+            return
+        
+        # Run the conversion
+        config = (config_type, config_version)
+        isa_to_runsheet(accession, Path(isa_archive), config)
+    finally:
+        # Change back to original directory
+        os.chdir(original_dir)
 
 
 if __name__ == "__main__":

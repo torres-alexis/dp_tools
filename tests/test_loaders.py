@@ -1,9 +1,9 @@
-import logging
+from pathlib import Path
+import pytest
+from loguru import logger as log
 
 from dp_tools.core.loaders import load_data
 from dp_tools.core.configuration import available_data_asset_keys
-
-import pytest
 
 
 def test_list_keys_in_config():
@@ -24,7 +24,10 @@ def test_key_based_loader_GLDS48(root_test_dir):
 
 
 def test_key_based_loader_GLDS194(root_test_dir, caplog):
-    caplog.set_level(logging.INFO)
+    # Set log level to INFO
+    import sys
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
 
     load_data(
         key_sets=["is paired end full", "has ercc"],

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dp_tools"
+version = "1.3.6"
+description = "Tooling for Data Processing Operations"
+authors = [
+    {name = "Jonathan Oribello", email = "jonathan.d.oribello@gmail.com"},
+    {name = "Alexis Torres", email = "lextorres46@gmail.com"},
+    ]
+maintainers = [
+    {name = "Alexis Torres", email = "lextorres46@gmail.com"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "requests>=2.32.3",
+    "pyyaml>=6.0.2",
+    "pandas>=2.2.3",
+    "schema>=0.7.7",
+    "tabulate>=0.9.0",
+    "multiqc>=1.27.1",
+    "pandera>=0.23.0",
+    "click>=8.1.8",
+    "loguru>=0.7.3",
+    "networkx>=3.4.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-console_scripts>=1.4.1",
+]
+
+[project.scripts]
+dp_tools = "dp_tools.scripts.top_level_cli:main"
+dpt = "dp_tools.scripts.top_level_cli:main"
+dpt-get-isa-archive = "dp_tools.scripts.isa_cli:deprecated_get_isa_archive"
+dpt-isa-to-runsheet = "dp_tools.scripts.isa_cli:deprecated_isa_to_runsheet"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+"dp_tools" = ["config/*.yaml", "assets/*"] 

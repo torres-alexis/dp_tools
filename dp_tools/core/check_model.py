@@ -641,6 +641,7 @@ class ValidationProtocol:
         INDENT_CHECKS_STR: str = " ",
         include_checks_counters: bool = True,
         WRAP_COMPONENT_NAME_CHAR: str = "'",
+        include_data_asset_load_report: pd.DataFrame = None,
     ) -> str:
         """Returns a print-friendly string describing the queued checks.
 

@@ -29,10 +29,7 @@ def pseudo_fingerprint(df):
 
 # TODO: Part of an alternative framework not fully implemented
 
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
+from loguru import logger as log
 
 
 @pytest.mark.parametrize(

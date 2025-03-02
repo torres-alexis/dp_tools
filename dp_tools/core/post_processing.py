@@ -2,21 +2,26 @@
 Depends on standard data asset metadata as loaded from packaged config files.
 """
 from collections import defaultdict
-import hashlib
+import datetime
+import json
 import os
 from pathlib import Path
 import re
-from typing import Optional, TypedDict, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Set,
+    TypedDict,
+    Union,
+)
+from loguru import logger as log
 from dp_tools.core.configuration import load_config
 import pkg_resources
 
-
-import logging
-
 from dp_tools.core.entity_model import Dataset, Group, Sample
 from dp_tools.core.files import isa_archive
-
-log = logging.getLogger(__name__)
 
 from schema import Schema
 import yaml
@@ -149,28 +154,54 @@ def get_assay_table_path(isaArchive: Path, configuration: dict) -> Path:
 
 
 # typehints mapping to config
-ResourceCategory = TypedDict(
-    "ResourceCategory",
-    {
-        "subcategory": "str",
-        "subdirectory": "str",
-        "publish to repo": "bool",
-        "include subdirectory in table": "bool",
-        "table order": "int",
-    },
-)
+class ResourceCategory(TypedDict):
+    """TypedDict representing the resource category configuration."""
+    subcategory: str
+    subdirectory: str
+    # Keys with spaces are renamed in code
+    publish_to_repo: bool  # Maps to "publish to repo" in config
+    include_subdirectory_in_table: bool  # Maps to "include subdirectory in table" in config 
+    table_order: int  # Maps to "table order" in config
 
-DataAssetConfig = TypedDict(
-    "DataAssetConfig",
-    {"processed location": "list", "resource categories": "ResourceCategory"},
-)
+
+class DataAssetConfig(TypedDict):
+    """TypedDict representing data asset configuration."""
+    processed_location: list  # Maps to "processed location" in config
+    resource_categories: ResourceCategory  # Maps to "resource categories" in config
+
+
+# Helper function to convert from dict with string keys to our typed dict
+def _convert_to_resource_category(config_dict: dict) -> ResourceCategory:
+    """Convert from config dictionary format to ResourceCategory.
+    
+    Args:
+        config_dict: Raw configuration dictionary with original key names
+        
+    Returns:
+        ResourceCategory with code-friendly attribute names
+    """
+    return ResourceCategory(
+        subcategory=config_dict["subcategory"],
+        subdirectory=config_dict["subdirectory"],
+        publish_to_repo=config_dict["publish to repo"],
+        include_subdirectory_in_table=config_dict["include subdirectory in table"],
+        table_order=config_dict["table order"],
+    )
 
 
 def get_repolike_category_string(data_asset_metadata: ResourceCategory) -> str:
+    """Get the category string formatted appropriately for repository display.
+    
+    Args:
+        data_asset_metadata: ResourceCategory configuration
+        
+    Returns:
+        String representation for use in repository
+    """
     if all(
         [
             data_asset_metadata["subdirectory"] != "",
-            data_asset_metadata["include subdirectory in table"],
+            data_asset_metadata["include_subdirectory_in_table"],
         ]
     ):
         return f"{data_asset_metadata['subcategory']}/{data_asset_metadata['subdirectory']}"
@@ -201,7 +232,7 @@ def generate_new_column_dicts(
     column_order: dict = dict()
 
     for asset in dataset.get_assets():
-        if not asset.config["resource categories"]["publish to repo"]:
+        if not asset.config["resource categories"]["publish_to_repo"]:
             continue
 
         # format header
@@ -244,7 +275,7 @@ def generate_new_column_dicts(
 
         # TODO: this likely will be better placed elsewhere but for now this is fine
         # Track column order here as a dict
-        column_order[header] = asset.config["resource categories"]["table order"]
+        column_order[header] = asset.config["resource categories"]["table_order"]
 
         # associate file names to each sample
         for sample in associated_samples:
@@ -539,7 +570,7 @@ def generate_md5sum_table(
     # table columns: resource_category, filename, md5sum
     data: Union[list[Md5sum_row_with_tags], list[Md5sum_row]] = list()
     for asset in dataset.get_assets():
-        if not asset.config["resource categories"]["publish to repo"]:
+        if not asset.config["resource categories"]["publish_to_repo"]:
             continue
 
         # catch rare cases where a data asset is 'psuedo loaded'
@@ -590,7 +621,7 @@ def generate_md5sum_table(
     publishable_asset_keys_in_config: set[str] = {
         key
         for key, value in loaded_config["data assets"].items()
-        if value["resource categories"]["publish to repo"]
+        if value["resource categories"]["publish_to_repo"]
     }
 
     missing_publishables_by_key = (

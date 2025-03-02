@@ -4,9 +4,11 @@ from pathlib import Path
 from types import ModuleType
 from typing import List, TypedDict
 
-import logging
-
-log = logging.getLogger(__name__)
+import io
+import json
+import re
+from loguru import logger as log
+from zipfile import ZipFile
 
 import multiqc
 import pandas as pd
