@@ -15,7 +15,7 @@ The `dpt isa` commands provide functionality for working with Investigation-Stud
 #### Get ISA Archive
 
 ```bash
-dpt isa get <accession> [--output-dir OUTPUT_DIR]
+dpt isa get --accession ACCESSION [--output-dir OUTPUT_DIR]
 ```
 
 Downloads an ISA archive for a given GLDS or OSD accession number.
@@ -23,16 +23,19 @@ Downloads an ISA archive for a given GLDS or OSD accession number.
 **Examples:**
 ```bash
 # Download ISA archive for GLDS-194
-dpt isa get GLDS-194
+dpt isa get --accession GLDS-194
+
+# Using short option
+dpt isa get -a GLDS-194
 
 # Download ISA archive for OSD-194 to a specific directory
-dpt isa get OSD-194 --output-dir /path/to/output
+dpt isa get --accession OSD-194 --output-dir /path/to/output
 ```
 
 #### Convert ISA to Runsheet
 
 ```bash
-dpt isa to-runsheet <accession> --config-type CONFIG_TYPE --config-version CONFIG_VERSION --isa-archive ISA_ARCHIVE [--output-dir OUTPUT_DIR]
+dpt isa to-runsheet --accession ACCESSION --config-type CONFIG_TYPE --isa-archive ISA_ARCHIVE [--config-version CONFIG_VERSION] [--output-dir OUTPUT_DIR]
 ```
 
 Converts an ISA archive to a runsheet compatible with GeneLab processing workflows.
@@ -40,11 +43,36 @@ Converts an ISA archive to a runsheet compatible with GeneLab processing workflo
 **Examples:**
 ```bash
 # Convert ISA archive to a bulkRNASeq runsheet
-dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version latest --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
+dpt isa to-runsheet --accession GLDS-194 --config-type bulkRNASeq --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
 
-# Convert ISA archive to a microarray runsheet with specific output directory
-dpt isa to-runsheet OSD-194 --config-type microarray --config-version v1 --isa-archive OSD-194_metadata_OSD-194-ISA.zip --output-dir /path/to/output
+# Using assay alias and short options
+dpt isa to-runsheet -a GLDS-194 --assay bulkRNASeq -i GLDS-194_metadata_GLDS-194-ISA.zip
+
+# Convert ISA archive to an amplicon runsheet 
+dpt isa to-runsheet --accession OSD-194 --assay amplicon --isa-archive OSD-194_metadata_OSD-194-ISA.zip --output-dir /path/to/output
 ```
+
+##### Output Format
+
+For most datasets with a single assay type:
+```
+ACCESSION_CONFIG-TYPE_v1_runsheet.csv
+```
+
+For amplicon datasets with multiple assay types (e.g., 16S and ITS):
+```
+ACCESSION_16S_a_ACCESSION_amplicon-sequencing_16s_illumina_amplicon_v1_runsheet.csv
+ACCESSION_ITS_a_ACCESSION_amplicon-sequencing_its_illumina_amplicon_v1_runsheet.csv
+```
+
+##### Supported Assay Types
+
+The following assay types are supported for ISA to runsheet conversion:
+- `amplicon` - For 16S and ITS amplicon sequencing data
+- `bulkRNASeq` - For bulk RNA sequencing data
+- `microarray` - For microarray data
+- `methylSeq` - For methylation sequencing data
+- `metagenomics` - For metagenomic sequencing data
 
 ### OSD API Interaction
 

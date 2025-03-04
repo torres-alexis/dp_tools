@@ -530,11 +530,21 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                 # Find columns that contain the substring naming_column
                 matching_columns = [col for col in df_final.columns if naming_column.lower() in col.lower()]
                 
-                col = matching_columns[0]
-                if naming_column not in col:
-                    print(f"Inconsistent naming found in {os.path.basename(assay_table_path)} column: {col}")
-                # Create file suffix from the matched column name, replacing spaces with underscores
-                assay_file_suffix = "_" + col.replace(" ", "_")
+                if matching_columns:
+                    col = matching_columns[0]
+                    if naming_column not in col:
+                        print(f"Inconsistent naming found in {os.path.basename(assay_table_path)} column: {col}")
+                    
+                    # Use the value from the first row instead of the column name
+                    value = df_final[col].iloc[0] if not df_final.empty else ""
+                    if isinstance(value, str) and value.strip():
+                        # Create file suffix from the value in the column
+                        assay_file_suffix = "_" + value.strip().replace(" ", "_").upper()
+                    else:
+                        # Fallback if empty or not a string
+                        assay_file_suffix = "_" + configuration['NAME']
+                else:
+                    assay_file_suffix = "_" + configuration['NAME']
             else:
                 assay_file_suffix = ""
 
