@@ -35,19 +35,17 @@ def get_isa(accession, output_dir):
     download_isa_archive(accession, output_dir)
 
 @isa.command(name="to-runsheet")
-@click.argument("accession")
-@click.option("--config-type", "-t", required=True, 
-              help="Packaged config type to use (e.g., bulkRNASeq, microarray)")
-@click.option("--config-version", "-v", required=True,
-              help="Packaged config version to use (e.g., Latest)")
-@click.option("--isa-archive", "-a", required=True,
+@click.option("--accession", required=True, help="Dataset accession (e.g., GLDS-168 or OSD-249)")
+@click.option("--config-type", "--assay", "-t", required=True, 
+              help="Packaged config type to use (e.g., bulkRNASeq, amplicon)")
+@click.option("--config-version", "-v", default="Latest",
+              help="Packaged config version to use (default: Latest)")
+@click.option("--isa-archive", "--isa", "-a", required=True,
               help="Path to the ISA archive file. Can be downloaded with 'dpt isa get'")
 @click.option("--output-dir", "-o", default=".", 
               help="Directory to save the output runsheet to.")
 def to_runsheet(accession, config_type, config_version, isa_archive, output_dir):
     """Convert an ISA archive to a runsheet.
-    
-    The accession argument should be a GLDS or OSD accession number (e.g., GLDS-168 or OSD-168).
     
     This command works with ISA archives from both GLDS and OSD accessions.
     """
