@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.7]
+
+### Added
+
+- Added `amplicon_16s`, `amplicon_18s`, `amplicon_its` profiles for runsheet generation.
+
+### Changed
+
+- Removed host organism dependency for amplicon runsheet generation.
+- Forced technology type (`16S`/`18S`/`ITS`) inclusion in all amplicon runsheet names.
+- Removed assay table name inclusion from runsheet names for datasets with multiple amplicon assay tables (verified all current OSD datasets have at most one amplicon assay table per technology type).
+- *Note: Support for combined '16S and ITS' assay type (OSD-249) is pending.*
+
+### Fixed
+
+- Dockerfile now sets the PATH environment variable using ENV.
+- Resolved Docker build dependency conflict (PyYAML) using `--ignore-installed` during pip install.
+
 ## [1.3.6]
 
 ### Changed
