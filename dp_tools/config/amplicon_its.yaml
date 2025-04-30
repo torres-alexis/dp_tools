@@ -1,0 +1,30 @@
+# TOP LEVEL
+NAME: "amplicon_its"
+VERSION: "1"
+
+Staging:
+  General:
+    Required Metadata:
+      From ISA:
+        # ... keep as in amplicon_vLatest.yaml ...
+
+ISA Meta:
+  Valid Study Assay Technology And Measurement Types:
+    - measurement: "Amplicon Sequencing"
+      technology: "ITS"
+  Global file prefix: "{datasystem}_amplicon_"
+  # ... rest as in amplicon_vLatest.yaml ...
+
+data assets:
+  runsheet:
+    processed location: 
+      - "Metadata"
+      - "{dataset}_amplicon_its_v1_runsheet.csv"
+    tags:
+      - raw
+  ISA Archive:
+    processed location: 
+      - "Metadata"
+      - "{dataset}_metadata_*-ISA.zip"
+    tags:
+      - raw 

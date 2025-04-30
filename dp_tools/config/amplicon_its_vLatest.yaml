@@ -1,5 +1,5 @@
 # TOP LEVEL
-NAME: "amplicon"
+NAME: "amplicon_its"
 VERSION: "1"
 
 Staging:
@@ -176,12 +176,6 @@ Staging:
 
 ISA Meta:
   Valid Study Assay Technology And Measurement Types:
-    - measurement: "Amplicon Sequencing"
-      technology: "16S"
-    - measurement: "Amplicon Sequencing"
-      technology: "18S"
-    # - measurement: "Amplicon Sequencing"
-    #   technology: "16S and ITS"
     - measurement: "Amplicon Sequencing"
       technology: "ITS"
 
