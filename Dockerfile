@@ -24,8 +24,10 @@ RUN chown -R genuser:genuser /app && \
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
     pip install --ignore-installed PyYAML /app &&  \
     # save space in image by removing source code after pip install
-    rm -rf /app && \
-    echo "export PATH=/home/genuser/.local/bin:$PATH" >> ~/.bashrc
+    rm -rf /app
+
+# Add local bin to path
+ENV PATH=/home/genuser/.local/bin:$PATH
 
 # swith to user
 USER genuser
