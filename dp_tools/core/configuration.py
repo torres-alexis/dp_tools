@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from typing import Union
-import importlib.resources as pkg_resources
 from warnings import warn
 from loguru import logger as log
 
@@ -15,13 +14,11 @@ def load_full_config(config: Union[str, Path]) -> dict:
         stacklevel=2,
     )
     if isinstance(config, str):
-        resolved_config_path = os.path.join(
-            "..", "config", f"bulkRNASeq_v{config}.yaml"
-        )
-        log.info(f"Loading full config (relative to package): {resolved_config_path}")
-        conf_full = yaml.safe_load(
-            pkg_resources.files(__name__).joinpath(resolved_config_path).read_bytes()
-        )
+        # Get path to config directory relative to this module
+        config_dir = Path(__file__).parent.parent / "config"
+        config_path = config_dir / f"bulkRNASeq_v{config}.yaml"
+        log.info(f"Loading full config: {config_path}")
+        conf_full = yaml.safe_load(config_path.read_text())
     elif isinstance(config, Path):
         log.info(f"Loading config (direct path): {config}")
         conf_full = yaml.safe_load(config.open())
@@ -47,13 +44,11 @@ def load_config(config: Union[tuple[str, str], Path]) -> dict:
     match config:
         case tuple():
             conf_type, conf_version = config
-            resolved_config_path = os.path.join(
-                "..", "config", f"{conf_type}_v{conf_version}.yaml"
-            )
-            log.info(f"Loading config (relative to package): {resolved_config_path}")
-            conf_full = yaml.safe_load(
-                pkg_resources.files(__name__).joinpath(resolved_config_path).read_bytes()
-            )
+            # Get path to config directory relative to this module
+            config_dir = Path(__file__).parent.parent / "config"
+            config_path = config_dir / f"{conf_type}_v{conf_version}.yaml"
+            log.info(f"Loading config: {config_path}")
+            conf_full = yaml.safe_load(config_path.read_text())
         case Path():
             log.info(f"Loading config (direct path): {config}")
             conf_full = yaml.safe_load(config.open())

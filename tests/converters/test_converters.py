@@ -2,8 +2,9 @@ import hashlib
 import os
 
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 import pytest
+from pathlib import Path
 
 from dp_tools.scripts.convert import isa_to_runsheet
 

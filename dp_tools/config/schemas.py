@@ -4,7 +4,7 @@ Uses Schema to allow usage of validation functions
 from schema import Schema
 from schema import Optional as schema_Optional
 from typing import Optional
-import pandera as pa
+import pandera.pandas as pa
 
 check_single_value = pa.Check(
     lambda x: len(x.unique()) == 1,
