@@ -50,7 +50,7 @@ Supported `CONFIG_TYPE` values include:
 **Examples:**
 ```bash
 # Convert ISA archive to a bulkRNASeq runsheet
-dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version latest --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
+dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
 
 # Convert ISA archive to a microarray runsheet with specific output directory
 dpt isa to-runsheet OSD-194 --config-type microarray --config-version v1 --isa-archive OSD-194_metadata_OSD-194-ISA.zip --output-dir /path/to/output

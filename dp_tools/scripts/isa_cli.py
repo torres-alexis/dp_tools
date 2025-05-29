@@ -35,7 +35,7 @@ def get_isa(accession, output_dir):
     download_isa_archive(accession, output_dir)
 
 @isa.command(name="to-runsheet")
-@click.option("--accession", required=True, help="Dataset accession (e.g., GLDS-168 or OSD-249)")
+@click.argument("accession")
 @click.option("--config-type", "--assay", "-t", required=True, 
               help="Packaged config type to use (e.g., bulkRNASeq, amplicon)")
 @click.option("--config-version", "-v", default="Latest",

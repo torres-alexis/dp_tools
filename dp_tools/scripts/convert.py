@@ -458,6 +458,12 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                         )
                     else:
                         df_final[entry["Runsheet Column Name"]] = series_to_add
+
+        # Add "Has Tech Reps" column based on Source Name frequency
+        if "Source Name" in df_final.columns:
+            source_name_counts = df_final["Source Name"].value_counts()
+            df_final["Has Tech Reps"] = df_final["Source Name"].map(lambda x: source_name_counts[x] > 1)
+            log.info("Added 'Has Tech Reps' column based on Source Name frequency")
         ################################################################
         ################################################################
         # PREPROCESSING
@@ -475,11 +481,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
             log.info(f"INJECTION: Column '{col_name}' being set to '{value}'")
             df_final[col_name] = value
 
-        # Add "Has Tech Reps" column based on Source Name frequency
-        if "Source Name" in df_final.columns:
-            source_name_counts = df_final["Source Name"].value_counts()
-            df_final["Has Tech Reps"] = df_final["Source Name"].map(lambda x: source_name_counts[x] > 1)
-            log.info("Added 'Has Tech Reps' column based on Source Name frequency")
+
 
         # then modify the index as needed
         df_final.index = df_final.index.str.replace(" ", "_")
