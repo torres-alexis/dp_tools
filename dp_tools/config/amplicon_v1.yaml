@@ -52,17 +52,7 @@ Staging:
           Runsheet Column Name: organism
           Processing Usage: >-
             Mapping to the appropriate alignment reference and annotation databases.
-          Example: Microbiota
-
-        - ISA Field Name: 
-            - Characteristics[host organism]
-            - Characteristics[Host Organism]
-            - Characteristics[Host organism]
-          ISA Table Source: Sample
-          Runsheet Column Name: host organism
-          Processing Usage: >-
-            Mapping to the appropriate alignment reference and annotation databases.
-          Example: Mus musculus
+          Example: Arabidopsis thaliana
 
         - ISA Field Name: Sample Name
           ISA Table Source: Assay
@@ -77,7 +67,7 @@ Staging:
             - Parameter Value[Library Layout]
           ISA Table Source: Assay
           Runsheet Column Name: paired_end
-          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false, "Single":false}
+          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false}
           Processing Usage: >-
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
@@ -99,7 +89,7 @@ Staging:
           Example: 515F, 5'-GTGYCAGCMGCCGCGGTAA-3', 806R, 5'-GGACTACNVGGGTWTCTAAT-3' yields GTGYCAGCMGCCGCGGTAA and GGACTACNVGGGTWTCTAAT
 
         # this entry denotes the following:
-        # retrieve from that ISA field name
+        # retrive from that ISA field name
         # multiple values (separated by ",")
         # index those to certain runsheet columns
         # if the index doesn't exist, optional prevents raising an exception
@@ -115,7 +105,7 @@ Staging:
           Runsheet Column Name: 
             - {'name':'read1_path', 'index':0}
             - {'name':'read2_path', 'index':1, 'optional':true}
-          GLDS URL Mapping: True
+          GLDS URL Mapping: true
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'
@@ -134,6 +124,23 @@ Staging:
           Processing Usage: >-
             Raw data fastq file.
           Example: '_R1_raw.fastq.gz or _raw.fastq.gz for SE'
+
+        - ISA Field Name: Source Name
+          ISA Table Source: Sample
+          Runsheet Column Name: Source Name
+          Processing Usage: >-
+            Source name identifier from the sample table.
+          Example: SLS-2_TMS_GC_G10
+
+        - ISA Field Name: 
+            - Characteristics[host organism]
+            - Characteristics[Host Organism]
+            - Characteristics[Host organism]
+          ISA Table Source: Sample
+          Runsheet Column Name: host organism
+          Processing Usage: >-
+            Mapping to the appropriate alignment reference and annotation databases.
+          Example: Mus musculus
 
         - ISA Field Name: Factor Value[{factor_name}]
           ISA Table Source: [Assay, Sample]

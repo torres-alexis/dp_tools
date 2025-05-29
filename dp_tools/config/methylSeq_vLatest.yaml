@@ -52,14 +52,14 @@ Staging:
             - Parameter Value[Library Layout]
           ISA Table Source: Assay
           Runsheet Column Name: paired_end
-          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false, "Single":false}
+          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false}
           Processing Usage: >-
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
           Example: 'TRUE'
     
         # this entry denotes the following:
-        # retrieve from that ISA field name
+        # retrive from that ISA field name
         # multiple values (separated by ",")
         # index those to certain runsheet columns
         # if the index doesn't exist, optional prevents raising an exception
@@ -79,6 +79,13 @@ Staging:
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'
+
+        - ISA Field Name: Source Name
+          ISA Table Source: Sample
+          Runsheet Column Name: Source Name
+          Processing Usage: >-
+            Source name identifier from the sample table.
+          Example: SLS-2_TMS_GC_G10
 
         - ISA Field Name: Factor Value[{factor_name}]
           ISA Table Source: [Assay, Sample]
