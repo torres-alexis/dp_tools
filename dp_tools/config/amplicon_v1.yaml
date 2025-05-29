@@ -125,13 +125,6 @@ Staging:
             Raw data fastq file.
           Example: '_R1_raw.fastq.gz or _raw.fastq.gz for SE'
 
-        - ISA Field Name: Source Name
-          ISA Table Source: Sample
-          Runsheet Column Name: Source Name
-          Processing Usage: >-
-            Source name identifier from the sample table.
-          Example: SLS-2_TMS_GC_G10
-
         - ISA Field Name: 
             - Characteristics[host organism]
             - Characteristics[Host Organism]

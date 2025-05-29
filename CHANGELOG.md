@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Source Name` column to all runsheet configurations
+- Added `Source Name` column to bulkRNASeq runsheet generation 
+- Added `Has Tech Reps` boolean column to bulkRNASeq runsheet generation based on `Source Name` 
 
 ## [1.3.7]
 
