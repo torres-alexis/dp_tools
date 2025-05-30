@@ -30,6 +30,21 @@ Staging:
         #     Mapping to the appropriate processing pipeline for the assay.
         #   Example: Affymetrix
 
+        - ISA Field Name: Study Protocol Type
+          ISA Table Source: Investigation
+          Investigation Subtable: STUDY PROTOCOLS
+          # will return a boolean indicating if any of the following includes
+          True If Includes At Least One:
+            - spike-in quality control role
+            - spike-in protocol
+            - spike-in control
+            - spike-in control protocol
+          Runsheet Column Name: has_ERCC
+          Processing Usage: >-
+            Indicates is ERCC spike-in has been added. This can be automatically
+            determined from the ISA archive as well based on 'Study Protocol Name' and 'Study Protocol Type'
+          Example: 'TRUE'
+
         - ISA Field Name: 
             - Characteristics[Organism]
             - Characteristics[organism]
@@ -52,14 +67,14 @@ Staging:
             - Parameter Value[Library Layout]
           ISA Table Source: Assay
           Runsheet Column Name: paired_end
-          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false}
+          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false, "Single":false}
           Processing Usage: >-
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
           Example: 'TRUE'
     
         # this entry denotes the following:
-        # retrive from that ISA field name
+        # retrieve from that ISA field name
         # multiple values (separated by ",")
         # index those to certain runsheet columns
         # if the index doesn't exist, optional prevents raising an exception
