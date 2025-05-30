@@ -39,7 +39,6 @@ Converts an ISA archive to a runsheet compatible with GeneLab processing workflo
 
 Supported `CONFIG_TYPE` values include:
 * `bulkRNASeq`
-* `microarray`
 * `methylSeq`
 * `metagenomics`
 * `amplicon` (Generic amplicon, creates runsheets for any 16S, 18S, or ITS assays found in the ISA archive)
@@ -52,19 +51,17 @@ Supported `CONFIG_TYPE` values include:
 # Convert ISA archive to a bulkRNASeq runsheet
 dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
 
-# Convert ISA archive to a microarray runsheet with specific output directory
-dpt isa to-runsheet OSD-194 --config-type microarray --config-version v1 --isa-archive OSD-194_metadata_OSD-194-ISA.zip --output-dir /path/to/output
 
 # Convert ISA archive targeting only 16S amplicon assays
 dpt isa to-runsheet OSD-694 --config-type amplicon_16s --isa-archive OSD-694_metadata_OSD-694-ISA.zip
-# Output: OSD-694_16S_amplicon_v1_runsheet.csv
+# Output: OSD-694_amplicon_16S_v1_runsheet.csv
 
 # Convert ISA archive using the generic amplicon config
 # This will find all amplicon assays (16S, 18S, ITS) and create separate runsheets
 dpt isa to-runsheet OSD-694 --config-type amplicon --isa-archive OSD-694_metadata_OSD-694-ISA.zip
 # Example Outputs (if both 16S and ITS assays are present):
-# OSD-694_16S_amplicon_v1_runsheet.csv
-# OSD-694_ITS_amplicon_v1_runsheet.csv
+# OSD-694_amplicon_16S_v1_runsheet.csv
+# OSD-694_amplicon_ITS_v1_runsheet.csv
 ```
 
 ### OSD API Interaction

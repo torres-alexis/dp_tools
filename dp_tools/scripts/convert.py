@@ -529,7 +529,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         # Handle specific amplicon configs
         if config_name.startswith("amplicon_"):
             tech_type = config_name.split('_')[1].upper() # e.g., '16S', 'ITS', '18S'
-            output_fn = f"{accession}_{tech_type}_amplicon_v{config_version}_runsheet.csv"
+            output_fn = f"{accession}_amplicon_{tech_type}_v{config_version}_runsheet.csv"
         # Handle generic amplicon config
         elif config_name == "amplicon":
             naming_column = "Library Selection"
@@ -563,7 +563,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                 log.warning(f"Could not find column containing '{naming_column}' to determine tech type. Omitting from filename.")
 
             # Construct filename using the determined tech type (if found)
-            output_fn = f"{accession}{tech_type_suffix}_amplicon_v{config_version}_runsheet.csv"
+            output_fn = f"{accession}_amplicon{tech_type_suffix}_v{config_version}_runsheet.csv"
         # Handle other config types (e.g., bulkRNASeq, methylSeq)
         else:
             output_fn = f"{accession}_{config_name}_v{config_version}_runsheet.csv"

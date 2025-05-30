@@ -1,6 +1,6 @@
 # TOP LEVEL
-NAME: "amplicon"
-VERSION: "1"
+NAME: "amplicon_its"
+VERSION: "2"
 
 Staging:
   General:
@@ -177,7 +177,7 @@ Staging:
 ISA Meta:
   Valid Study Assay Technology And Measurement Types:
     - measurement: "Amplicon Sequencing"
-      technology: "16S"
+      technology: "ITS"
 
   # this is prepended to all file names in the curation assay table
   Global file prefix: "{datasystem}_amplicon_"

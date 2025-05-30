@@ -1,6 +1,6 @@
 # TOP LEVEL
-NAME: "amplicon"
-VERSION: "1"
+NAME: "amplicon_16s"
+VERSION: "2"
 
 Staging:
   General:
@@ -52,7 +52,7 @@ Staging:
           Runsheet Column Name: organism
           Processing Usage: >-
             Mapping to the appropriate alignment reference and annotation databases.
-          Example: Microbiota
+          Example: Arabidopsis thaliana
 
         - ISA Field Name: Sample Name
           ISA Table Source: Assay
@@ -67,7 +67,7 @@ Staging:
             - Parameter Value[Library Layout]
           ISA Table Source: Assay
           Runsheet Column Name: paired_end
-          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false, "Single":false}
+          Remapping: {"PAIRED":true, "Paired":true, "SINGLE":false}
           Processing Usage: >-
             Indicates if the sequencing was paired end. This controls how a variety of tools are invoked 
             including in-house written scripts.
@@ -89,7 +89,7 @@ Staging:
           Example: 515F, 5'-GTGYCAGCMGCCGCGGTAA-3', 806R, 5'-GGACTACNVGGGTWTCTAAT-3' yields GTGYCAGCMGCCGCGGTAA and GGACTACNVGGGTWTCTAAT
 
         # this entry denotes the following:
-        # retrieve from that ISA field name
+        # retrive from that ISA field name
         # multiple values (separated by ",")
         # index those to certain runsheet columns
         # if the index doesn't exist, optional prevents raising an exception
@@ -105,7 +105,7 @@ Staging:
           Runsheet Column Name: 
             - {'name':'read1_path', 'index':0}
             - {'name':'read2_path', 'index':1, 'optional':true}
-          GLDS URL Mapping: True
+          GLDS URL Mapping: true
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'
@@ -177,8 +177,7 @@ Staging:
 ISA Meta:
   Valid Study Assay Technology And Measurement Types:
     - measurement: "Amplicon Sequencing"
-      technology: "18S"
-
+      technology: "16S"
 
   # this is prepended to all file names in the curation assay table
   Global file prefix: "{datasystem}_amplicon_"
