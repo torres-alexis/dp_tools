@@ -1,10 +1,10 @@
-""" Schemas for validation 
+""" Schemas for validation
 Uses Schema to allow usage of validation functions
 """
 from schema import Schema
 from schema import Optional as schema_Optional
 from typing import Optional
-import pandera.pandas as pa
+import pandera as pa
 
 check_single_value = pa.Check(
     lambda x: len(x.unique()) == 1,
@@ -21,6 +21,13 @@ check_read2_path_populated_if_paired_end = pa.Check(
     error="Expected 'read2_path' to be populated only if paired_end is True"
     )
 
+check_source_name_and_has_tech_reps_dependency = pa.Check(
+    lambda df: ("Has Tech Reps" not in df.columns) or ("Source Name" in df.columns),
+    title="Check that Source Name is present if Has Tech Reps is present",
+    description="If Has Tech Reps column is present, Source Name must also be present",
+    error="'Source Name' column must be present when 'Has Tech Reps' column is used"
+    )
+
 runsheet = {
     "bulkRNASeq": pa.DataFrameSchema(
         columns={
@@ -31,10 +38,10 @@ runsheet = {
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
             "Source Name": pa.Column(str, required=False),
-            "Has Tech Reps": pa.Column(bool, required=False),
+            "Has Tech Reps": pa.Column(bool, required=False, coerce=True),
         },
         # define checks at the DataFrameSchema-level
-        checks=check_read2_path_populated_if_paired_end
+        checks=[check_read2_path_populated_if_paired_end, check_source_name_and_has_tech_reps_dependency]
     ),
     "methylSeq": pa.DataFrameSchema(
         columns={

@@ -435,6 +435,10 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                                 series_to_add = pd.Series([entry.get("Fallback Value") for _ in range(len(df_merged))])
                                 use_fallback_value = True
                                 log.warn(f"Could not find column: {entry['ISA Field Name']}. Using configured fallback value: {entry.get('Fallback Value')}")
+                            elif entry.get("Optional"):
+                                # Skip this optional field since it's not found
+                                log.info(f"Optional field '{entry['ISA Field Name']}' not found in ISA archive. Skipping.")
+                                continue
                             else:
                                 raise(e)
                     if entry.get("GLDS URL Mapping"):
@@ -459,11 +463,6 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                     else:
                         df_final[entry["Runsheet Column Name"]] = series_to_add
 
-        # Add "Has Tech Reps" column based on Source Name frequency
-        if "Source Name" in df_final.columns:
-            source_name_counts = df_final["Source Name"].value_counts()
-            df_final["Has Tech Reps"] = df_final["Source Name"].map(lambda x: source_name_counts[x] > 1)
-            log.info("Added 'Has Tech Reps' column based on Source Name frequency")
         ################################################################
         ################################################################
         # PREPROCESSING

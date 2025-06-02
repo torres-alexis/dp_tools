@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Source Name` column to bulkRNASeq runsheet generation 
-- Added `Has Tech Reps` boolean column to bulkRNASeq runsheet generation based on `Source Name` 
+- Optional schema fields skip if not present in ISA archive for backwards compatibility
+- Added the following two columns which are only used in RNAseq DGE processing
+  - Added `Source Name` optional string column to bulkRNASeq runsheet generation 
+  - Added `Has Tech Reps` optional boolean column to bulkRNASeq runsheet generation from assay table
+    - When `Has Tech Reps` is present, requires `Source Name` column to also be present (dependency validation)
+
 
 ## [1.3.7]
 
