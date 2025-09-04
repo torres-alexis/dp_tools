@@ -99,6 +99,8 @@ Staging:
         # an exception will be raised if one and only one url is not mapped to each filename
         - ISA Field Name: 
             - Parameter Value[Merged Sequence Data File]
+            - Characteristics[Merged Sequence Data File]
+            - Raw Data File
           ISA Table Source: Assay
           Multiple Values Per Entry: true
           Multiple Values Delimiter: '\s*,\s*' # whitespace surrounded comma
@@ -109,6 +111,13 @@ Staging:
           Processing Usage: >-
             Location to the raw data fastq file. May be a url or local path.
           Example: 'https://genelab-data.ndc.nasa.gov/genelab/static/media/dataset/GLDS-194_rna...'
+
+        - ISA Field Name: Source Name
+          ISA Table Source: Sample
+          Runsheet Column Name: Source Name
+          Processing Usage: >-
+            Source name identifier from the sample table.
+          Example: SLS-2_TMS_GC_G10
 
         - ISA Field Name: Factor Value[{factor_name}]
           ISA Table Source: [Assay, Sample]

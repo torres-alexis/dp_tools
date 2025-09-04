@@ -1,7 +1,5 @@
+from loguru import logger as log
 from pathlib import Path
-import logging
-
-log = logging.getLogger(__name__)
 
 from dp_tools.core.configuration import load_config
 from dp_tools.core.entity_model import DataSystem, dataSystem_from_runsheet

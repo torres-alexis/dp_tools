@@ -1,4 +1,4 @@
-""" Schemas for validation 
+""" Schemas for validation
 Uses Schema to allow usage of validation functions
 """
 from schema import Schema
@@ -21,6 +21,13 @@ check_read2_path_populated_if_paired_end = pa.Check(
     error="Expected 'read2_path' to be populated only if paired_end is True"
     )
 
+check_source_name_and_has_tech_reps_dependency = pa.Check(
+    lambda df: ("Has Tech Reps" not in df.columns) or ("Source Name" in df.columns),
+    title="Check that Source Name is present if Has Tech Reps is present",
+    description="If Has Tech Reps column is present, Source Name must also be present",
+    error="'Source Name' column must be present when 'Has Tech Reps' column is used"
+    )
+
 runsheet = {
     "bulkRNASeq": pa.DataFrameSchema(
         columns={
@@ -30,9 +37,11 @@ runsheet = {
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
+            "Source Name": pa.Column(str, required=False),
+            "Has Tech Reps": pa.Column(bool, required=False, coerce=True),
         },
         # define checks at the DataFrameSchema-level
-        checks=check_read2_path_populated_if_paired_end
+        checks=[check_read2_path_populated_if_paired_end, check_source_name_and_has_tech_reps_dependency]
     ),
     "methylSeq": pa.DataFrameSchema(
         columns={
@@ -50,7 +59,54 @@ runsheet = {
         columns={
             "Original Sample Name": pa.Column(str),
             "organism": pa.Column(str),
-            "host organism": pa.Column(str),
+            "paired_end": pa.Column(bool, check_single_value),
+            "read1_path": pa.Column(str),
+            "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
+            "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
+            "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "raw_R1_suffix": pa.Column(str), # No single value check for now
+            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "groups": pa.Column(str)
+        },
+        # define checks at the DataFrameSchema-level
+        checks=check_read2_path_populated_if_paired_end
+    ),
+    "amplicon_16s": pa.DataFrameSchema(
+        columns={
+            "Original Sample Name": pa.Column(str),
+            "organism": pa.Column(str),
+            "paired_end": pa.Column(bool, check_single_value),
+            "read1_path": pa.Column(str),
+            "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
+            "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
+            "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "raw_R1_suffix": pa.Column(str), # No single value check for now
+            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "groups": pa.Column(str)
+        },
+        # define checks at the DataFrameSchema-level
+        checks=check_read2_path_populated_if_paired_end
+    ),
+    "amplicon_its": pa.DataFrameSchema(
+        columns={
+            "Original Sample Name": pa.Column(str),
+            "organism": pa.Column(str),
+            "paired_end": pa.Column(bool, check_single_value),
+            "read1_path": pa.Column(str),
+            "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
+            "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
+            "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "raw_R1_suffix": pa.Column(str), # No single value check for now
+            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
+            "groups": pa.Column(str)
+        },
+        # define checks at the DataFrameSchema-level
+        checks=check_read2_path_populated_if_paired_end
+    ),
+    "amplicon_18s": pa.DataFrameSchema(
+        columns={
+            "Original Sample Name": pa.Column(str),
+            "organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True

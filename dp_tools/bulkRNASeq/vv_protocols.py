@@ -2,11 +2,9 @@ from pathlib import Path
 import re
 from typing import Union
 import yaml
-import logging
+from loguru import logger as log
 
 from dp_tools.core.entity_model import Dataset
-
-log = logging.getLogger(__name__)
 
 from dp_tools.core.check_model import ValidationProtocol
 from dp_tools.bulkRNASeq.checks import *  # normally this isn't ideal, however, as a library of functions this seems reasonable

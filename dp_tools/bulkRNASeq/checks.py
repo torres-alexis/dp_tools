@@ -3,7 +3,7 @@ import copy
 import enum
 import gzip
 import itertools
-import logging
+from loguru import logger as log
 import math
 from pathlib import Path
 from statistics import mean
@@ -15,8 +15,6 @@ from importlib.metadata import files
 import pandas as pd
 
 from dp_tools.core.entity_model import Dataset, Sample, multiqc_run_to_dataframes
-
-log = logging.getLogger(__name__)
 
 from dp_tools.core.check_model import FlagCode, FlagEntry, FlagEntryWithOutliers
 
@@ -335,7 +333,7 @@ def check_for_outliers(
             df_diffs_in_std = df_diffs / df[mqc_key].std()
 
             # add to outlier tracker if over the threshold
-            for key, value in df_diffs_in_std.iteritems():
+            for key, value in df_diffs_in_std.items():
                 # if an outlier
                 if abs(value) > threshold["stdev_threshold"]:
                     # track it
@@ -808,7 +806,7 @@ def check_contrasts_table_rows(contrasts_table: Path, **_) -> FlagEntry:
         return {g1, g2}
 
     bad_columns: dict[str, dict[str, set]] = dict()
-    for (col_name, col_series) in df_contrasts.iteritems():
+    for (col_name, col_series) in df_contrasts.items():
         expected_values = _get_groups_from_comparisions(col_name)
         if not expected_values == set(col_series):
             bad_columns[col_name] = {
@@ -1032,7 +1030,7 @@ def utils_common_constraints_on_dataframe(
 
         # limit to only columns of interest
         query_df = df[col_set]
-        for (colname, colseries) in query_df.iteritems():
+        for (colname, colseries) in query_df.items():
             # check non null constraint
             if col_constraints.pop("nonNull", False) and nonNull(colseries) == False:
                 issues["Failed non null constraint"].append(colname)

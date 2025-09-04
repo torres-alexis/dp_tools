@@ -211,7 +211,10 @@ def spec(
         else None,
     )
 
-    vp = plugin.protocol.validate(
+    logger.trace(dir(datasystem.dataset))
+    logger.trace(datasystem.dataset.loaded_assets_report.iloc[1]['kwargs'])
+
+    vp: ValidationProtocol = plugin.protocol.validate(
         datasystem.dataset,
         report_args={"include_skipped": True},
         defer_run=True,
@@ -231,6 +234,7 @@ def spec(
         include_checks_counters=False,
         include_manual_checks=True,
     )
+
 
     with open(output, "w") as f:
         f.write(specification)

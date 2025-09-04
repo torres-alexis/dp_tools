@@ -11,7 +11,7 @@ RUN groupadd -r genuser && \
     apt-get update && \
     apt-get install software-properties-common -y && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get install python3.10 python3.10-distutils curl samtools -y && \
+    apt-get install python3.10 python3.10-distutils curl samtools zip -y && \
     # ensure python3.10 is linked to python for shebang support
     ln -s /usr/bin/python3.10 /usr/bin/python
     
@@ -22,10 +22,12 @@ COPY . /app
 # set ownership and permissions
 RUN chown -R genuser:genuser /app && \
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
-    pip install /app &&  \
+    pip install --ignore-installed PyYAML /app &&  \
     # save space in image by removing source code after pip install
-    rm -rf /app && \
-    echo "export PATH=/home/genuser/.local/bin:$PATH" >> ~/.bashrc
+    rm -rf /app
+
+# Add local bin to path
+ENV PATH=/home/genuser/.local/bin:$PATH
 
 # swith to user
 USER genuser

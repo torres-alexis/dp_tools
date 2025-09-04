@@ -1,3 +1,8 @@
+"""
+A script that converts ISA Archives into a specific format based on a provided configuration file
+
+Optional: Has provisions for adding in extra fields as well
+"""
 import argparse
 from pathlib import Path
 import re
@@ -14,12 +19,11 @@ from dp_tools import plugin_api
 import pandas as pd
 from pandera import DataFrameSchema
 
-import logging
 import os
 import sys
 import atexit
 
-log = logging.getLogger(__name__)
+from loguru import logger as log
 
 
 class BulkRNASeqMetadataComponent:
@@ -77,7 +81,7 @@ def get_assay_table_path(
     return assay_paths, match_indices
 
 
-SUPPORTED_CONFIG_TYPES = ["microarray", "bulkRNASeq", "methylSeq", "amplicon", "metagenomics"]
+SUPPORTED_CONFIG_TYPES = ["microarray", "bulkRNASeq", "methylSeq", "amplicon", "amplicon_16s", "amplicon_its", "amplicon_18s", "metagenomics"]
 
 
 def _parse_args():
@@ -119,8 +123,16 @@ def _parse_args():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = _parse_args()
+
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+
+    # Ensure we have a valid config
+    if args.config_version is None:
+        args.config_version = "Latest"
+
     inject = {key_value_pair.split("=")[0]:key_value_pair.split("=")[1] for key_value_pair in args.inject} # Format key value pairs
 
     if args.plugin_dir == False:
@@ -423,6 +435,10 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                                 series_to_add = pd.Series([entry.get("Fallback Value") for _ in range(len(df_merged))])
                                 use_fallback_value = True
                                 log.warn(f"Could not find column: {entry['ISA Field Name']}. Using configured fallback value: {entry.get('Fallback Value')}")
+                            elif entry.get("Optional"):
+                                # Skip this optional field since it's not found
+                                log.info(f"Optional field '{entry['ISA Field Name']}' not found in ISA archive. Skipping.")
+                                continue
                             else:
                                 raise(e)
                     if entry.get("GLDS URL Mapping"):
@@ -446,6 +462,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
                         )
                     else:
                         df_final[entry["Runsheet Column Name"]] = series_to_add
+
         ################################################################
         ################################################################
         # PREPROCESSING
@@ -463,6 +480,8 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
             log.info(f"INJECTION: Column '{col_name}' being set to '{value}'")
             df_final[col_name] = value
 
+
+
         # then modify the index as needed
         df_final.index = df_final.index.str.replace(" ", "_")
         modified_samples: list[str] = list(
@@ -474,7 +493,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
             )
 
         # if amplicon runsheet: make groups column
-        if configuration['NAME'] == "amplicon":
+        if configuration['NAME'].startswith("amplicon"):
             factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
             df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
 
@@ -503,35 +522,50 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         # WRITE OUTPUT
         ################################################################
         ################################################################
+        config_name = configuration['NAME']
+        config_version = configuration['VERSION']
         
-        if configuration['NAME'] == "amplicon":
+        # Handle specific amplicon configs
+        if config_name.startswith("amplicon_"):
+            tech_type = config_name.split('_')[1].upper() # e.g., '16S', 'ITS', '18S'
+            output_fn = f"{accession}_amplicon_{tech_type}_v{config_version}_runsheet.csv"
+        # Handle generic amplicon config
+        elif config_name == "amplicon":
             naming_column = "Library Selection"
-        # elif configuration['NAME'] == "metagenomics":
-        #     naming_column = "Library Kit"
-        else:
-            naming_column = None
-        
-        assay_file_suffix = ""
+            tech_type_suffix = "" # Default suffix if tech type can't be determined
 
-        if multiple_valid_assays:
-            if naming_column:
-                # Find columns that contain the substring naming_column
-                matching_columns = [col for col in df_final.columns if naming_column.lower() in col.lower()]
-                
+            # Always try to find the tech type from the Library Selection column for this specific assay
+            matching_columns = [col for col in df_final.columns if naming_column.lower() in col.lower()]
+            if matching_columns: # Check if any matching columns were found
                 col = matching_columns[0]
                 if naming_column not in col:
-                    print(f"Inconsistent naming found in {os.path.basename(assay_table_path)} column: {col}")
-                # Create file suffix from the matched column name, replacing spaces with underscores
-                assay_file_suffix = "_" + col.replace(" ", "_")
+                     # Log warning instead of printing directly to stdout? Adapt as needed.
+                    log.warning(f"Inconsistent naming found in source ISA table column: {col}, expected to contain '{naming_column}'")
+                
+                # Use the unique value(s) from the column
+                unique_vals = df_final[col].dropna().unique()
+                if len(unique_vals) == 1:
+                    val_str = str(unique_vals[0]).replace(" ", "_").upper()
+                elif len(unique_vals) > 1:
+                    # Handle multiple types found within the same assay table if necessary
+                    # For now, join them, uppercased
+                    val_str = "_".join([str(v).replace(" ", "_").upper() for v in unique_vals])
+                    log.warning(f"Multiple tech types ({val_str}) found in column '{col}' for a single assay table runsheet.")
+                else: # Fallback if column is empty or only NaN
+                    val_str = None # Indicate tech type wasn't found
+                
+                if val_str:
+                    tech_type_suffix = f"_{val_str}"
+                else:
+                     log.warning(f"Could not determine tech type from column '{col}'. Omitting from filename.")
             else:
-                assay_file_suffix = ""
+                log.warning(f"Could not find column containing '{naming_column}' to determine tech type. Omitting from filename.")
 
-            assay_table_file = os.path.basename(assay_table_path)
-            assay_table_name, _ = os.path.splitext(assay_table_file)
-            output_fn = f"{accession}{assay_file_suffix}_{assay_table_name}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
-
+            # Construct filename using the determined tech type (if found)
+            output_fn = f"{accession}_amplicon{tech_type_suffix}_v{config_version}_runsheet.csv"
+        # Handle other config types (e.g., bulkRNASeq, methylSeq)
         else:
-            output_fn = f"{accession}_{configuration['NAME']}_v{configuration['VERSION']}_runsheet.csv"
+            output_fn = f"{accession}_{config_name}_v{config_version}_runsheet.csv"
 
         # Logging the final output path and DataFrame dimensions
         log.info(f"Writing runsheet to: {output_fn} with {df_final.shape[0]} rows and {df_final.shape[1]} columns")
@@ -544,6 +578,42 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         return final_dfs[0]  # Return the sole dataframe
     else:
         return final_dfs  # Return the list of dataframes
+
+
+def convert_isa_to_runsheet(accession: str, config_type: str, config_version: str, isa_archive: str, output_dir: str = "."):
+    """Converts an ISA archive to a runsheet.
+    
+    This is the main function exposed to the CLI.
+    
+    Args:
+        accession: GLDS or OSD accession number, e.g., GLDS-194 or OSD-194
+        config_type: Packaged config type to use (e.g., bulkRNASeq, microarray)
+        config_version: Packaged config version to use (e.g., Latest)
+        isa_archive: Path to the ISA archive file
+        output_dir: Directory to save the output runsheet to. Defaults to current directory.
+    """
+    # Configure logging
+    log.remove()  # Remove default handler
+    log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
+    
+    # Change to output directory
+    original_dir = Path.cwd()
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True, parents=True)
+    os.chdir(output_path)
+    
+    try:
+        # Validate config_type
+        if config_type not in SUPPORTED_CONFIG_TYPES:
+            log.error(f"Invalid config type: {config_type}. Supported types: {SUPPORTED_CONFIG_TYPES}")
+            return
+        
+        # Run the conversion
+        config = (config_type, config_version)
+        isa_to_runsheet(accession, Path(isa_archive), config)
+    finally:
+        # Change back to original directory
+        os.chdir(original_dir)
 
 
 if __name__ == "__main__":

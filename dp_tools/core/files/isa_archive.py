@@ -3,7 +3,7 @@
 from pathlib import Path
 import tempfile
 import zipfile
-import logging
+from loguru import logger as log
 
 import pandas as pd
 

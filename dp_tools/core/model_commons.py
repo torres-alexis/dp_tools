@@ -1,8 +1,9 @@
 """ Utilities common to all models in the package """
 
 from typing import List
-import logging
-log = logging.getLogger(__name__)
+from pathlib import Path
+from typing import Union
+from loguru import logger as log
 
 def strict_type_checks(
     obj: object, exceptions: List[str] = None, except_nones: List[str] = None

@@ -5,10 +5,8 @@ from pathlib import Path
 import tempfile
 from typing import ClassVar, Dict, List, OrderedDict, Set, Union
 
-import logging
+from loguru import logger as log
 import zipfile
-
-log = logging.getLogger(__name__)
 
 import pandas as pd
 import multiqc

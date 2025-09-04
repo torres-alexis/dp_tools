@@ -4,9 +4,11 @@ from pathlib import Path
 from types import ModuleType
 from typing import List, TypedDict
 
-import logging
-
-log = logging.getLogger(__name__)
+import io
+import json
+import re
+from loguru import logger as log
+from zipfile import ZipFile
 
 import multiqc
 import pandas as pd
@@ -95,12 +97,7 @@ def get_parsed_data(
         # logger = log.getLogger("multiqc")
         # [logger.removeHandler(h) for h in logger.handlers]
         mqc_ret = multiqc.run(
-            input_f,
-            no_data_dir=True,
-            module=modules,
-            quiet=True,
-            no_ansi=True,
-        )  # note: empty list for modules falls back on all modules
+            *input_f)  # note: empty list for modules falls back on all modules
         log.info(f"Successfully parsed: {input_f}")
     except SystemExit as e:
         # a zero exit code indicates no data extracted (expected if the file isn't covered by a multiqc module yet)
@@ -113,9 +110,9 @@ def get_parsed_data(
         return None
 
     if not as_dataframe:
-        return mqc_ret
+        return report
     else:
-        mqc_df = format_as_dataframe(mqc_ret["report"])
+        mqc_df = format_as_dataframe(report)
         return mqc_df
 
 
@@ -168,7 +165,7 @@ class MQCRunDict(TypedDict):
 
 def get_general_stats(mqc_run_output: MQCRunDict) -> dict[str, dict]:
     returnDict = dict()
-    report = mqc_run_output["report"]
+    report = mqc_run_output
     mqc_modules = [
         list(header_entry.values())[0]["namespace"]
         for header_entry in report.general_stats_headers
@@ -180,8 +177,6 @@ def get_general_stats(mqc_run_output: MQCRunDict) -> dict[str, dict]:
 
 def format_plots_as_dataframe(mqc_rep: MQCRunDict | dict) -> pd.DataFrame:
     log.info(f"Formatting to dataframe")
-    if getattr(mqc_rep, "report", False):
-        mqc_rep = mqc_rep["report"]
 
     # ingest plot data
     flat_plot_dict = format_plot_data(mqc_rep)
@@ -202,14 +197,14 @@ def parse_bar_graph_to_flat_dict(plot_data):
         messy_s: [
             {
                 (
-                    plot_data["config"]["title"],
-                    plot_data["config"]["title"],
-                    f"{plot_data_subset['name']} ({plot_data['config'].get('ylab')})",
+                    plot_data["pconfig"]["title"],
+                    plot_data["pconfig"]["title"],
+                    f"{plot_data_subset['name']} ({plot_data['pconfig'].get('ylab')})",
                 ): plot_data_subset["data"][i]
             }
-            for plot_data_subset in plot_data["datasets"][0]
+            for plot_data_subset in plot_data['datasets'][0]['cats']
         ]
-        for i, messy_s in enumerate(plot_data["samples"][0])
+        for i, messy_s in enumerate(plot_data['datasets'][0]['samples'])
     }
     return val
 
@@ -234,25 +229,21 @@ def __clean_mapped_data(mapped_data, messy_to_clean_map):
 def __parse_xy_line_graph_to_flat_dict(plot_data):
     # return messy sample:[{key (ylab):value}]
     all_flat_dict = dict()
-    if categories := plot_data["config"].get("categories"):
-        log.debug("Plot has categorical data, extracting by category")
-        for line in plot_data["datasets"][0]:
-            sample_flat_dict = list()
+    if plot_data["pconfig"].get("categories"):
+        for line in plot_data["datasets"][0]['lines']:
             messy_s = line["name"]
-            sample_flat_dict = [
-                {
-                    (
-                        plot_data["config"]["title"],
-                        plot_data["config"]["title"],
-                        f"{categories[i_category]} {plot_data['config']['xlab']} ({plot_data['config']['ylab']})",
-                    ): val
-                }
-                for i_category, val in enumerate(line["data"])
+            sample_flat_dict = [{(
+            plot_data["pconfig"]["title"],
+            plot_data["pconfig"]["title"],
+            f"{category} {plot_data['pconfig']['xlab']} ({plot_data['pconfig']['ylab']})"
+            ): val
+            }
+            for category, val in line['pairs']
             ]
             all_flat_dict[messy_s] = sample_flat_dict
     else:
         log.debug("Plot does not have categorical data, extracting accordingly")
-        for line in plot_data["datasets"][0]:
+        for line in plot_data["datasets"][0]['lines']:
             sample_flat_dict = list()
             messy_s = line["name"]
             # accomodate adaptor specific content (a feature of the column, not the sample)
@@ -268,27 +259,28 @@ def __parse_xy_line_graph_to_flat_dict(plot_data):
             sample_flat_dict = [
                 {
                     (
-                        plot_data["config"]["title"],
-                        f"{plot_data['config']['title']}:{adapter_s}"
+                        plot_data["pconfig"]["title"],
+                        f"{plot_data['pconfig']['title']}:{adapter_s}"
                         if adapter_s
-                        else plot_data["config"]["title"],
-                        f"{pos[0]} {plot_data['config']['xlab']} ({plot_data['config']['ylab']})",
+                        else plot_data["pconfig"]["title"],
+                        f"{pos[0]} {plot_data['pconfig']['xlab']} ({plot_data['pconfig']['ylab']})",
                     ): pos[1]
                 }
-                for pos in line["data"]
+                for pos in line["pairs"]
             ]
             all_flat_dict[messy_s] = sample_flat_dict
     return all_flat_dict
 
 
 def format_plot_data(mqc_rep: dict):
-    if mqc_rep.get("report"):
-        mqc_rep = mqc_rep.get("report").plot_data
+   
+    if mqc_rep:
+        mqc_rep = mqc_rep.plot_data
     log.info(f"Attempting to extract data from {len(mqc_rep)} plots")
     all_clean_data = dict()
     for plot_key, plot_data in mqc_rep.items():
         log.info(
-            f"Attempting to extract data from plot with Title: {plot_data['config']['title']}"
+            f"Attempting to extract data from plot with Title: {plot_data['pconfig']['title']}"
         )
         log.debug(f"Plot type: {plot_data['plot_type']}")
         # check plot type
@@ -303,7 +295,7 @@ def format_plot_data(mqc_rep: dict):
                     "clean_sample": clean_messy_sample(s)[0],
                     "sub_source": clean_messy_sample(s)[1],
                 }
-                for s in plot_data["samples"][0]
+                for s in plot_data['datasets'][0]['samples']
             }
         elif plot_data["plot_type"] == "xy_line":
             mapped_data = __parse_xy_line_graph_to_flat_dict(
@@ -316,12 +308,13 @@ def format_plot_data(mqc_rep: dict):
                     "clean_sample": clean_messy_sample(s)[0],
                     "sub_source": clean_messy_sample(s)[1],
                 }
-                for s in [s["name"] for s in plot_data["datasets"][0]]
+                for s in [s["name"] for s in plot_data["datasets"][0]['lines']]
             }
-        elif plot_data["plot_type"] in ["heatmap"]:
+        elif plot_data["plot_type"] in ["heatmap", "violin"]:
             log.warning(
-                f"Not implemented for dataframe extraction: {plot_data['plot_type']}, skipping this plot with Title: {plot_data['config']['title']}"
+                f"Not implemented for dataframe extraction: {plot_data['plot_type']}, skipping this plot with Title: {plot_data['pconfig']['title']}"
             )
+            continue
         else:
             raise ValueError(
                 f"Unexpected plot type encountered: {plot_data['plot_type']} for plot: {plot_key}"

@@ -4,8 +4,7 @@ import sys
 import re
 from pathlib import Path
 
-import logging
-log = logging.getLogger(__name__)
+from loguru import logger as log
 
 def load_all_plugins(plugin_dir: Path):
     sys.path.append(str(plugin_dir))
