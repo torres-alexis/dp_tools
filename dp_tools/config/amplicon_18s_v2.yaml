@@ -193,7 +193,7 @@ data assets:
   runsheet:
     processed location: 
       - "Metadata"
-      - "{dataset}_amplicon_v1_runsheet.csv"
+      - "{dataset}_amplicon_v2_runsheet.csv"
 
     tags:
       - raw
