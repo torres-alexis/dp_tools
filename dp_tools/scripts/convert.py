@@ -494,7 +494,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
 
         # if amplicon runsheet: make groups column
         if configuration['NAME'].startswith("amplicon"):
-            factor_value_cols = [col for col in df_final.columns if 'Factor Value' in col]
+            factor_value_cols = [col for col in df_final.columns if 'Factor Value' in str(col)]
             df_final['groups'] = df_final[factor_value_cols].apply(lambda row: ' & '.join(row.values.astype(str)), axis=1)
 
         ################################################################

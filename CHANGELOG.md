@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.3.10]
+
+### Added
+
+- Added v3 amplicon configs: Add Parameter Value[Raw Sequence Data] as a source for raw data files, remove unnecessary organism and raw data file suffixes columns
+
 
 ## [1.3.9]
 

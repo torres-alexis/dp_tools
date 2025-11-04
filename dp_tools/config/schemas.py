@@ -58,14 +58,11 @@ runsheet = {
     "amplicon": pa.DataFrameSchema(
         columns={
             "Original Sample Name": pa.Column(str),
-            "organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
             "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
             "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
-            "raw_R1_suffix": pa.Column(str), # No single value check for now
-            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
             "groups": pa.Column(str)
         },
         # define checks at the DataFrameSchema-level
@@ -74,14 +71,11 @@ runsheet = {
     "amplicon_16s": pa.DataFrameSchema(
         columns={
             "Original Sample Name": pa.Column(str),
-            "organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
             "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
             "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
-            "raw_R1_suffix": pa.Column(str), # No single value check for now
-            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
             "groups": pa.Column(str)
         },
         # define checks at the DataFrameSchema-level
@@ -90,14 +84,11 @@ runsheet = {
     "amplicon_its": pa.DataFrameSchema(
         columns={
             "Original Sample Name": pa.Column(str),
-            "organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
             "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
             "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
-            "raw_R1_suffix": pa.Column(str), # No single value check for now
-            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
             "groups": pa.Column(str)
         },
         # define checks at the DataFrameSchema-level
@@ -106,14 +97,11 @@ runsheet = {
     "amplicon_18s": pa.DataFrameSchema(
         columns={
             "Original Sample Name": pa.Column(str),
-            "organism": pa.Column(str),
             "paired_end": pa.Column(bool, check_single_value),
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
             "F_Primer": pa.Column(str, check_single_value), # Expect if paired_end is True
             "R_Primer": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
-            "raw_R1_suffix": pa.Column(str), # No single value check for now
-            "raw_R2_suffix": pa.Column(str, check_single_value, required=False), # Expect if paired_end is True
             "groups": pa.Column(str)
         },
         # define checks at the DataFrameSchema-level

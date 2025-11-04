@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dp_tools"
-version = "1.3.9"
+version = "1.3.10"
 description = "Tooling for Data Processing Operations"
 authors = [
     {name = "Jonathan Oribello", email = "jonathan.d.oribello@gmail.com"},
