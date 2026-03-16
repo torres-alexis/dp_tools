@@ -4,9 +4,23 @@ A collection of tools used for data processing workflows used for my work at NAS
 
 [Current documentation](https://torres-alexis.github.io/dp_tools/dp_tools.html) (hosted on github pages)
 
+## Installation
+
+```bash
+pip install -e .
+```
+
+Or from git: `pip install git+https://github.com/torres-alexis/dp_tools.git`
+
 ## Command-Line Tools
 
-The dp_tools package provides a suite of command-line tools for data processing workflows. These can be accessed using either the `dp_tools` command or the shorter `dpt` alias.
+The dp_tools package provides command-line tools for data processing workflows.
+
+**Primary interface:** `dp_tools` or `dpt` alias.
+
+**Standalone commands** (same functionality):
+* `dpt-get-isa-archive` — download ISA archive
+* `dpt-isa-to-runsheet` — convert ISA archive to runsheet
 
 ### ISA Archive Management
 
@@ -29,7 +43,7 @@ dpt isa get GLDS-194
 dpt isa get OSD-194 --output-dir /path/to/output
 ```
 
-#### Convert ISA to Runsheet
+#### Convert ISA archive (.zip) to Runsheet
 
 ```bash
 dpt isa to-runsheet <accession> --config-type CONFIG_TYPE --config-version CONFIG_VERSION --isa-archive ISA_ARCHIVE [--output-dir OUTPUT_DIR]
@@ -42,15 +56,16 @@ Supported `CONFIG_TYPE` values include:
 * `methylSeq`
 * `metagenomics`
 * `amplicon` (Generic amplicon, creates runsheets for any 16S, 18S, or ITS assays found in the ISA archive)
-* `amplicon_16s` (Specifically targets 16S assays)
-* `amplicon_its` (Specifically targets ITS assays)
-* `amplicon_18s` (Specifically targets 18S assays)
+* `amplicon_16s` (Specifically for 16S assays)
+* `amplicon_its` (Specifically for ITS assays)
+* `amplicon_18s` (Specifically for 18S assays)
 
 **Examples:**
 ```bash
 # Convert ISA archive to a bulkRNASeq runsheet
-dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive GLDS-194_metadata_GLDS-194-ISA.zip
-
+# Note: dpt isa get GLDS-194 downloads OSD-194_metadata_OSD-194-ISA.zip (GLDS maps to OSD)
+dpt isa get GLDS-194
+dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive OSD-194_metadata_OSD-194-ISA.zip
 
 # Convert ISA archive targeting only 16S amplicon assays
 dpt isa to-runsheet OSD-694 --config-type amplicon_16s --isa-archive OSD-694_metadata_OSD-694-ISA.zip
@@ -78,7 +93,8 @@ Downloads files from OSDR that match a specified pattern.
 
 **Examples:**
 ```bash
-# Download all fastq.gz files for OSD-194
+# Download files matching a pattern (regex)
+# Note: raw fastq may be inside .tar archives for some datasets; use .*\.tar$ for those
 dpt osd download-files OSD-194 ".*\.fastq\.gz$"
 
 # Just list the URLs without downloading (dry run)
@@ -116,6 +132,10 @@ dpt validation manual-checks VALIDATION_REPORT
 dpt validation spec PLUGIN_DIR DATA_DIR RUNSHEET_PATH [OPTIONS]
 ```
 
+* `PLUGIN_DIR`: Path to validation plugin (e.g. `dp_tools__bulkRNASeq`). Use `dpt validation run --help` for options.
+* `DATA_DIR`: Root directory of processed dataset.
+* `RUNSHEET_PATH`: Path to runsheet CSV.
+
 For more detailed information on all commands, use the `--help` option:
 
 ```bash
@@ -123,4 +143,7 @@ dpt --help
 dpt isa --help
 dpt osd --help
 dpt validation --help
+# Standalone commands
+dpt-get-isa-archive --help
+dpt-isa-to-runsheet --help
 ```

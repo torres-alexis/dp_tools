@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.3.11]
+
+### Added
+
+- Installation instructions in README
+- Standalone commands (`dpt-get-isa-archive`, `dpt-isa-to-runsheet`) documented in README alongside primary `dpt` interface
+
+### Changed
+
+- Standalone commands no longer emit deprecation warnings; treated as alternative interface
+- README to-runsheet example: corrected ISA filename (GLDS→OSD mapping), added `dpt isa get` step
+- README download-files example: added note about `.tar` vs `.fastq.gz` for different datasets
+- GitHub Pages workflow: trigger on tag push only, added `configure-pages`, upgraded `upload-pages-artifact` to v4
+
+### Fixed
+
+- `dpt isa to-runsheet` with `--output-dir`: ISA archive path now resolved before chdir, so relative paths work correctly
+
 ## [1.3.10]
 
 ### Added

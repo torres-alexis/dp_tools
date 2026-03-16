@@ -88,23 +88,14 @@ def convert_isa(accession, config_type, config_version, isa_archive, output_dir)
         output_dir=output_dir
     )
 
-# Add backward compatibility wrappers with deprecation warnings
-def deprecated_get_isa_archive():
-    """Deprecated entry point for dpt-get-isa-archive."""
-    warnings.warn(
-        "The 'dpt-get-isa-archive' command is deprecated and will be removed in a future version. "
-        "Please use 'dpt isa get' instead.", 
-        DeprecationWarning, stacklevel=2
-    )
+# Standalone CLI entry points (argparse-based, alternative to dpt isa subcommands)
+def get_isa_archive_cli():
+    """Entry point for dpt-get-isa-archive."""
     from dp_tools.glds_api.isa import main
     main()
 
-def deprecated_isa_to_runsheet():
-    """Deprecated entry point for dpt-isa-to-runsheet."""
-    warnings.warn(
-        "The 'dpt-isa-to-runsheet' command is deprecated and will be removed in a future version. "
-        "Please use 'dpt isa to-runsheet' instead.", 
-        DeprecationWarning, stacklevel=2
-    )
+
+def isa_to_runsheet_cli():
+    """Entry point for dpt-isa-to-runsheet."""
     from dp_tools.scripts.convert import main
     main() 

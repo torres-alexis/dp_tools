@@ -596,21 +596,26 @@ def convert_isa_to_runsheet(accession: str, config_type: str, config_version: st
     log.remove()  # Remove default handler
     log.add(sys.stderr, level="INFO")  # Add stderr handler with INFO level
     
+    # Resolve ISA path before chdir so relative paths work from original cwd
+    isa_archive_path = Path(isa_archive).resolve()
+    if not isa_archive_path.exists():
+        raise FileNotFoundError(isa_archive)
+
     # Change to output directory
     original_dir = Path.cwd()
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
     os.chdir(output_path)
-    
+
     try:
         # Validate config_type
         if config_type not in SUPPORTED_CONFIG_TYPES:
             log.error(f"Invalid config type: {config_type}. Supported types: {SUPPORTED_CONFIG_TYPES}")
             return
-        
+
         # Run the conversion
         config = (config_type, config_version)
-        isa_to_runsheet(accession, Path(isa_archive), config)
+        isa_to_runsheet(accession, isa_archive_path, config)
     finally:
         # Change back to original directory
         os.chdir(original_dir)
