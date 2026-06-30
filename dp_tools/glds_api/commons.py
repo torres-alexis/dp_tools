@@ -3,6 +3,7 @@ Python functions the retrieve data from GeneLab. Uses the GeneLab public APIs (h
 """
 
 import functools
+from pathlib import Path
 from urllib.request import urlopen
 import requests
 import json
@@ -107,14 +108,81 @@ def find_matching_filenames(accession: str, filename_pattern: str) -> list[str]:
     :return: List of file names that match the pattern
     :rtype: list[str]
     """
-    import re
+    return filter_filenames(
+        accession=accession,
+        filename_pattern=filename_pattern,
+    )
+
+
+def filter_filenames(
+    accession: str,
+    filename_pattern: str | None = None,
+    categories: list[str] | None = None,
+    subcategories: list[str] | None = None,
+) -> list[str]:
+    """Return filenames filtered by OSDR category metadata and/or glob pattern."""
     import fnmatch
-    
-    # Convert glob pattern to regex pattern
-    regex_pattern = fnmatch.translate(filename_pattern)
-    
+
     df = get_table_of_files(accession)
-    return df.loc[df['file_name'].str.contains(regex_pattern, regex=True), 'file_name'].to_list()
+
+    if categories:
+        df = df[df["category"].isin(categories)]
+
+    if subcategories:
+        df = df[df["subcategory"].isin(subcategories)]
+
+    if filename_pattern:
+        regex_pattern = fnmatch.translate(filename_pattern)
+        df = df[df["file_name"].str.contains(regex_pattern, regex=True)]
+
+    return df["file_name"].tolist()
+
+
+def filenames_from_isa_assay(
+    assay_path: Path, column: str = "Raw Data File"
+) -> list[str]:
+    """Read filenames from an ISA assay table column (comma-separated values supported)."""
+    assay_tab = pd.read_csv(assay_path, sep="\t")
+    if column not in assay_tab.columns:
+        raise ValueError(
+            f"Column '{column}' not found in {assay_path.name}. "
+            f"Available columns: {list(assay_tab.columns)}"
+        )
+
+    filenames: list[str] = []
+    for entry in assay_tab[column].dropna():
+        entry = str(entry).strip()
+        if not entry:
+            continue
+        for part in entry.split(","):
+            part = part.strip()
+            if part:
+                filenames.append(part)
+
+    return list(dict.fromkeys(filenames))
+
+
+def resolve_filenames_on_osdr(
+    accession: str, target_filenames: list[str]
+) -> tuple[list[str], list[str]]:
+    """Split target filenames into those available on OSDR and those missing."""
+    available = set(get_table_of_files(accession)["file_name"])
+    found = [name for name in target_filenames if name in available]
+    missing = [name for name in target_filenames if name not in available]
+    return found, missing
+
+
+def format_file_hierarchy(accession: str) -> str:
+    """Format OSDR file categories/subcategories as a hierarchy (matches repository UI)."""
+    df = get_table_of_files(accession)
+    lines = [accession]
+    for category, cat_df in df.groupby("category", sort=True):
+        lines.append(f"  {category} ({len(cat_df)})")
+        for subcategory, sub_df in cat_df.groupby("subcategory", sort=True):
+            if pd.isna(subcategory) or subcategory == "":
+                continue
+            lines.append(f"    {subcategory} ({len(sub_df)})")
+    return "\n".join(lines)
 
 def retrieve_file_url(accession: str, filename: str) -> str:
     """Retrieve file URL associated with a GLDS accesion ID

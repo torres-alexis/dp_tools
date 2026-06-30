@@ -4,7 +4,7 @@ Uses Schema to allow usage of validation functions
 from schema import Schema
 from schema import Optional as schema_Optional
 from typing import Optional
-import pandera as pa
+import pandera.pandas as pa
 
 check_single_value = pa.Check(
     lambda x: len(x.unique()) == 1,
@@ -113,5 +113,34 @@ runsheet = {
             "read1_path": pa.Column(str),
             "read2_path": pa.Column(str, required=False), # Expect if paired_end is True
         }
-    )
+    ),
+    "microarray_agilent": pa.DataFrameSchema(
+        columns={
+            "Original Sample Name": pa.Column(str),
+            "organism": pa.Column(str, check_single_value),
+            "Study Assay Measurement": pa.Column(str, check_single_value),
+            "Study Assay Technology Type": pa.Column(str, check_single_value),
+            "Study Assay Technology Platform": pa.Column(str, check_single_value),
+            "Source Name": pa.Column(str),
+            "Label": pa.Column(str, check_single_value),
+            "Hybridization Assay Name": pa.Column(str),
+            "Array Data File Name": pa.Column(str),
+            "Array Data File Path": pa.Column(str),
+        },
+        strict=False,
+    ),
+    "microarray_affymetrix": pa.DataFrameSchema(
+        columns={
+            "Original Sample Name": pa.Column(str),
+            "organism": pa.Column(str, check_single_value),
+            "Study Assay Measurement": pa.Column(str, check_single_value),
+            "Study Assay Technology Type": pa.Column(str, check_single_value),
+            "Study Assay Technology Platform": pa.Column(str, check_single_value),
+            "Source Name": pa.Column(str),
+            "Label": pa.Column(str, check_single_value),
+            "Array Data File Name": pa.Column(str),
+            "Array Data File Path": pa.Column(str),
+        },
+        strict=False,
+    ),
 }

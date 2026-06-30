@@ -9,7 +9,7 @@ from loguru import logger as log
 import zipfile
 
 import pandas as pd
-import multiqc
+# import multiqc
 
 from dp_tools.core.model_commons import strict_type_checks
 from dp_tools.core.entity_model import (

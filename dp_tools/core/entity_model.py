@@ -11,19 +11,20 @@ from enum import Enum, auto
 from dp_tools.core.check_model import FlagCode
 
 import pandas as pd
-import multiqc
-from multiqc import report
+# import multiqc
+# from multiqc import report
 import collections
 
 # MULTIQC MONKEY PATCH TO ADDRESS ISSUE: https://github.com/ewels/MultiQC/issues/1643
-multiqc.config.logger.hasHandlers = (
-    lambda: False
-)  # this means the logger never gets purged, but more importantly prevents a log purge based exceptoin
+# multiqc.config.logger.hasHandlers = (
+#     lambda: False
+# )  # this means the logger never gets purged, but more importantly prevents a log purge based exceptoin
 
 
 from dp_tools.core.utilites.multiqc_tools import (
     format_plots_as_dataframe,
     get_general_stats,
+    require_multiqc,
 )
 
 
@@ -316,6 +317,7 @@ class Dataset:
 
 
 def multiqc_run_to_dataframes(paths: list[Path]) -> dict:
+    multiqc, report = require_multiqc()
     try:
         mqc_ret = multiqc.run(
             *paths# module=[

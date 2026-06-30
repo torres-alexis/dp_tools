@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.12]
+
+### Added
+
+- `dpt osd download-files`: parallel downloads (`-j`), output directory (`-o`)
+- `dpt osd download-files`: ISA assay selection (`-a` / `--isa-assay`, `--data-file-column`; default `Raw Data File`)
+- `dpt osd download-files`: OSDR category filtering (`-c` / `--category`, repeatable `--subcategory`, `--list-categories`)
+- `dpt osd get-samples`: `--table-index` / `-t` for non-interactive ISA table selection; `-i` / `--interactive` for prompt
+- `glds_api.commons`: `filter_filenames`, `filenames_from_isa_assay`, `format_file_hierarchy`
+- Restored microarray runsheet configs (`microarray` with Agilent/Affymetrix auto-detection; explicit `microarray_agilent` / `microarray_affymetrix` keys) with platform-specific data assets and pandera schemas
+
+### Changed
+
+- README: expanded OSD/ISA CLI docs; validation section commented out; download examples split by selection mode; system deps (`curl`, GNU `parallel`) documented
+- `dpt osd get-samples`: multiple ISA tables now list indices and exit (cluster-safe); prompt only with `-i`
+- `dpt isa convert`: silent alias for `to-runsheet` (deprecation warning removed)
+- `dp_tools` and `dpt` documented as equivalent entry points
+- MultiQC removed from default package dependencies; lazy-loaded when validation/metrics code runs (`pip install 'multiqc==1.26'`)
+
+### Fixed
+
+- README: `download-files` documented as glob patterns (not regex)
+- Pandera import: use `pandera.pandas` to silence deprecation warning on CLI startup
+
 ## [1.3.11]
 
 ### Added

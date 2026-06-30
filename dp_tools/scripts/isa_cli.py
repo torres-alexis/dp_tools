@@ -39,11 +39,13 @@ def get_isa(accession, output_dir):
               help="Packaged config type to use (e.g., bulkRNASeq, amplicon)")
 @click.option("--config-version", "-v", default="Latest",
               help="Packaged config version to use (default: Latest)")
+@click.option("--platform", "-p", default=None,
+              help="Microarray platform override when using --config-type microarray (affymetrix or agilent)")
 @click.option("--isa-archive", "--isa", "-a", required=True,
               help="Path to the ISA archive file. Can be downloaded with 'dpt isa get'")
 @click.option("--output-dir", "-o", default=".", 
               help="Directory to save the output runsheet to.")
-def to_runsheet(accession, config_type, config_version, isa_archive, output_dir):
+def to_runsheet(accession, config_type, config_version, platform, isa_archive, output_dir):
     """Convert an ISA archive to a runsheet.
     
     This command works with ISA archives from both GLDS and OSD accessions.
@@ -53,7 +55,8 @@ def to_runsheet(accession, config_type, config_version, isa_archive, output_dir)
         config_type=config_type,
         config_version=config_version,
         isa_archive=isa_archive,
-        output_dir=output_dir
+        output_dir=output_dir,
+        platform=platform,
     )
 
 # Alias (same behavior as to-runsheet)
@@ -63,18 +66,21 @@ def to_runsheet(accession, config_type, config_version, isa_archive, output_dir)
               help="Packaged config type to use (e.g., bulkRNASeq, amplicon)")
 @click.option("--config-version", "-v", default="Latest",
               help="Packaged config version to use (default: Latest)")
+@click.option("--platform", "-p", default=None,
+              help="Microarray platform override when using --config-type microarray (affymetrix or agilent)")
 @click.option("--isa-archive", "--isa", "-a", required=True,
               help="Path to the ISA archive file. Can be downloaded with 'dpt isa get'")
 @click.option("--output-dir", "-o", default=".",
               help="Directory to save the output runsheet to.")
-def convert_isa(accession, config_type, config_version, isa_archive, output_dir):
+def convert_isa(accession, config_type, config_version, platform, isa_archive, output_dir):
     """Convert an ISA archive to a runsheet (alias for to-runsheet)."""
     convert_isa_to_runsheet(
         accession=accession,
         config_type=config_type,
         config_version=config_version,
         isa_archive=isa_archive,
-        output_dir=output_dir
+        output_dir=output_dir,
+        platform=platform,
     )
 
 # Standalone CLI entry points (argparse-based; same functionality as dpt isa subcommands)

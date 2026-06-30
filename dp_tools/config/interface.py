@@ -16,7 +16,7 @@ ConfigSelection = Union[ConfigVersion, Path]
 @functools.cache # Allows repeated usage of this function without actually loading from file more than once
 def load_config(config: ConfigSelection) -> dict:
     """Load yaml configuration file. Allows loading from either:
-      - A prepackaged configuration file using a tuple of ('config_type','config_version') (e.g. ('bulkRNASeq','Latest'), ('microarray','0'))
+      - A prepackaged configuration file using a tuple of ('config_type','config_version') (e.g. ('bulkRNASeq','Latest'), ('microarray_agilent','Latest'))
       - A configuration file supplied as a Path object
 
     :param config: Configuration file to load

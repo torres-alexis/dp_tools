@@ -12,6 +12,18 @@ pip install -e .
 
 Or from git: `pip install git+https://github.com/torres-alexis/dp_tools.git`
 
+### System dependencies (optional)
+
+`dpt osd download-files` uses **GNU parallel** and **curl** for faster parallel downloads when both are on `PATH`. If either is missing, it falls back to threaded downloads via Python `requests`.
+
+```bash
+# conda / mamba
+conda install -c conda-forge parallel curl
+
+# Debian / Ubuntu
+sudo apt install parallel curl
+```
+
 ## Command-Line Tools
 
 The dp_tools package provides command-line tools for working with OSDR datasets.
@@ -52,6 +64,9 @@ Converts an ISA archive to a runsheet compatible with GeneLab processing workflo
 
 Supported `CONFIG_TYPE` values include:
 * `bulkRNASeq`
+* `microarray` (Generic DNA microarray, creates runsheets for any Agilent or Affymetrix assays found in the ISA archive)
+* `microarray_agilent` (Specifically for Agilent 1-channel assays)
+* `microarray_affymetrix` (Specifically for Affymetrix assays)
 * `methylSeq`
 * `metagenomics`
 * `amplicon` (Generic amplicon, creates runsheets for any 16S, 18S, or ITS assays found in the ISA archive)
@@ -94,42 +109,82 @@ The `dpt osd` commands provide functionality for interacting with the Open Scien
 #### Download Files
 
 ```bash
-dpt osd download-files <osd-id> <file-pattern> [--dry-run] [--y]
+dpt osd download-files <osd-id> [FILE-PATTERN] [OPTIONS]
 ```
 
-Downloads files from OSDR that match a glob-style pattern (shell wildcards: `*`, `?`).
+**Selection modes** (use one primary mode):
+
+| Mode | How |
+|------|-----|
+| Glob pattern | Positional `FILE-PATTERN` (`*`, `?`) |
+| ISA assay table | `-a` / `--isa-assay` + optional `--data-file-column` (default: `Raw Data File`) |
+| Repository category | `-c` / `--category` + optional `--subcategory` (see `--list-categories`) |
+
+`-a` cannot be combined with `FILE-PATTERN` or `-c`. With `-c`, an optional `FILE-PATTERN` further narrows by filename.
+
+**Category filtering:** `-c` and `--subcategory` are repeatable. Multiple values are OR'd within each level (e.g. two `--subcategory` flags = files in subcategory A **or** B). Omit `--subcategory` to include all subcategories under the selected `-c` value(s).
+
+**Other options:** `--dry-run`, `-y` (no prompt), `-o` output dir, `-j` parallel jobs. Uses GNU `parallel` + `curl` when available; otherwise threaded downloads.
 
 **Examples:**
+
+List the OSDR file hierarchy (matches the repository browser):
 ```bash
-# Download raw FASTQ files (individual .fastq.gz on repository)
+dpt osd download-files OSD-240 --list-categories
+```
+
+By category:
+```bash
+# All files in a top-level category
+dpt osd download-files OSD-240 -c "RNA-Seq" --dry-run
+
+# One subcategory
+dpt osd download-files OSD-240 -c "RNA-Seq" --subcategory "Raw sequence data" --y
+
+# Multiple subcategories (OR)
+dpt osd download-files OSD-240 -c "GeneLab Processed RNA-Seq Files" \
+  --subcategory "Raw counts data" \
+  --subcategory "Normalized counts data" \
+  --dry-run
+
+# Multiple categories (OR)
+dpt osd download-files OSD-240 -c "Study Metadata Files" -c "RNA-Seq" --dry-run
+```
+
+From ISA assay table:
+```bash
+dpt isa get OSD-240
+dpt osd download-files OSD-240 -a a_OSD-240_transcription-profiling_rna-sequencing-(rna-seq)_illumina.txt
+
+# Different column name, if needed
+dpt osd download-files OSD-240 -a a_OSD-240_....txt --data-file-column "Derived Data File"
+```
+
+By glob pattern:
+```bash
 dpt osd download-files OSD-237 "*raw.fastq.gz"
-
-# OSD-194 also has per-sample raw fastqs; older studies may only have .tar archives
-dpt osd download-files OSD-194 "*raw.fastq.gz"
-dpt osd download-files OSD-194 "*tar"
-
-# Just list the URLs without downloading (dry run)
-dpt osd download-files OSD-194 "*raw.fastq.gz" --dry-run
-
-# Download without interactive prompts
-dpt osd download-files OSD-194 "*raw.fastq.gz" --y
+dpt osd download-files OSD-194 "*tar" -o ./data -j 10 --y
 ```
 
 #### Get Sample Names
 
 ```bash
-dpt osd get-samples <osd-id> [--output OUTPUT]
+dpt osd get-samples <osd-id> [--output OUTPUT] [-t TABLE_INDEX] [-i]
 ```
 
-Downloads the study's ISA archive from OSDR, then reads the `Sample Name` column from a single ISA table inside the zip. If exactly one assay table (`a_*`) is present, it is used automatically; otherwise you are prompted to choose from all assay and sample tables (`a_*` and `s_*`). Writes one name per line to the output file (default: `samples.txt`).
+Downloads the study's ISA archive from OSDR, then reads the `Sample Name` column from a single ISA table inside the zip. If exactly one assay table (`a_*`) is present, it is used automatically. If multiple tables exist, lists indices and exits; pass `--table-index` / `-t` (cluster-safe) or `-i` / `--interactive` to choose at a prompt.
 
 **Examples:**
 ```bash
-# Get sample names for OSD-194 and save to the default file (samples.txt)
 dpt osd get-samples OSD-194
 
-# Get sample names and save to a specific file
+# Multiple tables: lists options, then re-run with index
+dpt osd get-samples OSD-694 --table-index 0
+
 dpt osd get-samples OSD-194 --output my_samples.txt
+
+# Interactive selection (local use)
+dpt osd get-samples OSD-694 -i
 ```
 
 <!--

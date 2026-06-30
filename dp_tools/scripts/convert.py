@@ -17,7 +17,7 @@ from dp_tools import plugin_api
 
 
 import pandas as pd
-from pandera import DataFrameSchema
+from pandera.pandas import DataFrameSchema
 
 import os
 import sys
@@ -81,7 +81,50 @@ def get_assay_table_path(
     return assay_paths, match_indices
 
 
-SUPPORTED_CONFIG_TYPES = ["microarray", "bulkRNASeq", "methylSeq", "amplicon", "amplicon_16s", "amplicon_its", "amplicon_18s", "metagenomics"]
+SUPPORTED_CONFIG_TYPES = [
+    "microarray",
+    "microarray_agilent",
+    "microarray_affymetrix",
+    "bulkRNASeq",
+    "methylSeq",
+    "amplicon",
+    "amplicon_16s",
+    "amplicon_its",
+    "amplicon_18s",
+    "metagenomics",
+]
+
+
+def resolve_microarray_config(
+    isaArchive: Path,
+    assay_index: int,
+    config_version: str,
+    platform_override: str | None = None,
+) -> tuple[str, str]:
+    """Map generic microarray config to platform-specific config from ISA platform field."""
+    if platform_override:
+        p = platform_override.lower()
+        if "agilent" in p:
+            return ("microarray_agilent", config_version)
+        if "affymetrix" in p:
+            return ("microarray_affymetrix", config_version)
+        raise ValueError(
+            f"Invalid microarray --platform {platform_override!r}; use affymetrix or agilent"
+        )
+
+    i_tables = isa_investigation_subtables(isaArchive)
+    platform = str(
+        i_tables["STUDY ASSAYS"].loc[assay_index, "Study Assay Technology Platform"]
+    )
+    pl = platform.lower()
+    if "affymetrix" in pl:
+        return ("microarray_affymetrix", config_version)
+    if "agilent" in pl:
+        return ("microarray_agilent", config_version)
+    raise ValueError(
+        f"Cannot detect microarray platform from Study Assay Technology Platform: "
+        f"{platform!r}. Pass --platform affymetrix or agilent."
+    )
 
 
 def _parse_args():
@@ -178,26 +221,51 @@ def get_column_name(df: pd.DataFrame, target: Union[str, list]) -> str:
 
 
 # TODO: Needs heavy refactoring and log messaging
-def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, str], Path], inject: dict[str, str] = {}, schema: Union[DataFrameSchema, None] = None, assert_factor_values: bool = True):
+def isa_to_runsheet(
+    accession: str,
+    isaArchive: Path,
+    config: Union[tuple[str, str], Path],
+    inject: dict[str, str] = {},
+    schema: Union[DataFrameSchema, None] = None,
+    assert_factor_values: bool = True,
+    platform_override: str | None = None,
+):
     ################################################################
     ################################################################
     # SETUP CONFIG AND INPUT TABLES
     ################################################################
     ################################################################
     log.info("Setting up to generate runsheet dataframe")
-    configuration = load_config(config=config)
-    if configuration['NAME'] == "amplicon":
-            atexit.register(lambda: print("Warning: This script may not work as intended for amplicon sequencing datasets annotated before 2022. The Data Processing Team is actively working to address this issue.", file=sys.stderr))
+    user_config = config
+    is_microarray = isinstance(user_config, tuple) and user_config[0] == "microarray"
+
+    if is_microarray:
+        probe_configuration = load_config(("microarray_agilent", user_config[1]))
+        configuration = None
+        runsheet_schema = schema
+    else:
+        configuration = load_config(config=user_config)
+        probe_configuration = configuration
+        if schema is None:
+            runsheet_schema = schemas.runsheet[user_config[0]]
+        else:
+            runsheet_schema = schema
+
+    if configuration and configuration["NAME"] == "amplicon":
+        atexit.register(
+            lambda: print(
+                "Warning: This script may not work as intended for amplicon sequencing datasets annotated before 2022. The Data Processing Team is actively working to address this issue.",
+                file=sys.stderr,
+            )
+        )
     R1_designations = ["_R1_", "_R1.", "-R1.", "-R1-", ".R1.", "_1."]
     R2_designations = ["_R2_", "_R2.", "-R2.", "-R2-", ".R2.", "_2."]
 
-    if schema is None:
-        runsheet_schema = schemas.runsheet[config[0]]
-    else:
-        runsheet_schema = schema
     i_tables = isa_investigation_subtables(isaArchive)
 
-    assay_table_paths, assay_table_indices = get_assay_table_path(ISAarchive=isaArchive, configuration=configuration)
+    assay_table_paths, assay_table_indices = get_assay_table_path(
+        ISAarchive=isaArchive, configuration=probe_configuration
+    )
     # Check if there are multiple valid assays. If there are, add the assay path to the runsheet file name 
     multiple_valid_assays = len(assay_table_paths) > 1
 
@@ -207,6 +275,21 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
 
     # Iterate over all paths and process the data
     for assay_table_path, a_study_assays_index in zip(assay_table_paths, assay_table_indices):
+        if is_microarray:
+            resolved_config = resolve_microarray_config(
+                isaArchive,
+                a_study_assays_index,
+                user_config[1],
+                platform_override=platform_override,
+            )
+            configuration = load_config(resolved_config)
+            log.info(f"Resolved microarray config to {resolved_config[0]}")
+            iteration_schema = (
+                schemas.runsheet[resolved_config[0]] if schema is None else schema
+            )
+        else:
+            iteration_schema = runsheet_schema
+
         with open(assay_table_path, 'r') as f:
             first_line = f.readline().strip()
 
@@ -507,7 +590,7 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         # validate dataframe contents (incomplete but catches most required columns)
         # uses dataframe to dict index format: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_dict.html
 
-        runsheet_schema.validate(df_final)
+        iteration_schema.validate(df_final)
 
         if assert_factor_values:
             # ensure at least one Factor Value is extracted
@@ -580,14 +663,21 @@ def isa_to_runsheet(accession: str, isaArchive: Path, config: Union[tuple[str, s
         return final_dfs  # Return the list of dataframes
 
 
-def convert_isa_to_runsheet(accession: str, config_type: str, config_version: str, isa_archive: str, output_dir: str = "."):
+def convert_isa_to_runsheet(
+    accession: str,
+    config_type: str,
+    config_version: str,
+    isa_archive: str,
+    output_dir: str = ".",
+    platform: str | None = None,
+):
     """Converts an ISA archive to a runsheet.
     
     This is the main function exposed to the CLI.
     
     Args:
         accession: GLDS or OSD accession number, e.g., GLDS-194 or OSD-194
-        config_type: Packaged config type to use (e.g., bulkRNASeq, microarray)
+        config_type: Packaged config type to use (e.g., bulkRNASeq, microarray_agilent)
         config_version: Packaged config version to use (e.g., Latest)
         isa_archive: Path to the ISA archive file
         output_dir: Directory to save the output runsheet to. Defaults to current directory.
@@ -615,7 +705,12 @@ def convert_isa_to_runsheet(accession: str, config_type: str, config_version: st
 
         # Run the conversion
         config = (config_type, config_version)
-        isa_to_runsheet(accession, isa_archive_path, config)
+        isa_to_runsheet(
+            accession,
+            isa_archive_path,
+            config,
+            platform_override=platform,
+        )
     finally:
         # Change back to original directory
         os.chdir(original_dir)

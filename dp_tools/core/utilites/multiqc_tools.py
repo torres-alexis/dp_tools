@@ -10,8 +10,23 @@ import re
 from loguru import logger as log
 from zipfile import ZipFile
 
-import multiqc
+# import multiqc
 import pandas as pd
+
+
+def require_multiqc():
+    """Lazy-load MultiQC (optional dependency)."""
+    try:
+        import multiqc
+        from multiqc import report
+    except ImportError as e:
+        raise ImportError(
+            "MultiQC is not installed. Validation and metrics features require: "
+            "pip install 'multiqc==1.26'"
+        ) from e
+    multiqc.config.logger.hasHandlers = lambda: False
+    return multiqc, report
+
 
 # iterable to remove suffixes and add them as subsource descriptors
 SUBSOURCES = [
@@ -91,6 +106,7 @@ def get_reformated_source_dict(source_dict: dict):
 def get_parsed_data(
     input_f: List[str], modules: List[str] = [], as_dataframe: bool = True
 ):
+    multiqc, report = require_multiqc()
     log.info(f"Using MQC to parse: {input_f}")
     try:
         # a workaround for flushing handlers in MQC version 1.11
