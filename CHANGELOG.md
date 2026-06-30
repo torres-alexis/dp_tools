@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dpt isa convert`: silent alias for `to-runsheet` (deprecation warning removed)
 - `dp_tools` and `dpt` documented as equivalent entry points
 - MultiQC removed from default package dependencies; lazy-loaded when validation/metrics code runs (`pip install 'multiqc==1.26'`)
+- Dependency minimums bumped (pandas 3.x, pandera 0.32.x, pytest 9.x, and others); dropped unused `importlib_metadata` (stdlib on Python 3.10+)
 
 ### Fixed
 
