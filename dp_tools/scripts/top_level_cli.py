@@ -43,8 +43,7 @@ def cli():
     - Data asset management
     - OSD API interactions
     
-    This CLI can be accessed using either the 'dp_tools' command (recommended)
-    or the shorter 'dpt' alias.
+    Use either `dpt` or `dp_tools` — they are equivalent.
     """
     pass
 

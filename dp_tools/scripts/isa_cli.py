@@ -7,7 +7,6 @@ Provides commands for:
 
 import click
 from pathlib import Path
-import warnings
 
 # Import the original functions
 from dp_tools.glds_api.isa import download_isa_archive
@@ -57,29 +56,19 @@ def to_runsheet(accession, config_type, config_version, isa_archive, output_dir)
         output_dir=output_dir
     )
 
-# Keep convert as an alias for backward compatibility
+# Alias (same behavior as to-runsheet)
 @isa.command(name="convert", hidden=True)
 @click.argument("accession")
-@click.option("--config-type", "-t", required=True, 
-              help="Packaged config type to use (e.g., bulkRNASeq, microarray)")
-@click.option("--config-version", "-v", required=True,
-              help="Packaged config version to use (e.g., Latest)")
-@click.option("--isa-archive", "-a", required=True,
+@click.option("--config-type", "--assay", "-t", required=True,
+              help="Packaged config type to use (e.g., bulkRNASeq, amplicon)")
+@click.option("--config-version", "-v", default="Latest",
+              help="Packaged config version to use (default: Latest)")
+@click.option("--isa-archive", "--isa", "-a", required=True,
               help="Path to the ISA archive file. Can be downloaded with 'dpt isa get'")
-@click.option("--output-dir", "-o", default=".", 
+@click.option("--output-dir", "-o", default=".",
               help="Directory to save the output runsheet to.")
 def convert_isa(accession, config_type, config_version, isa_archive, output_dir):
-    """[DEPRECATED] Use 'to-runsheet' instead.
-    
-    Convert an ISA archive to a runsheet.
-    
-    The accession argument should be a GLDS or OSD accession number (e.g., GLDS-168 or OSD-168).
-    """
-    warnings.warn(
-        "The 'convert' command is deprecated and will be removed in a future version. "
-        "Please use 'to-runsheet' instead.",
-        DeprecationWarning, stacklevel=2
-    )
+    """Convert an ISA archive to a runsheet (alias for to-runsheet)."""
     convert_isa_to_runsheet(
         accession=accession,
         config_type=config_type,
@@ -88,7 +77,7 @@ def convert_isa(accession, config_type, config_version, isa_archive, output_dir)
         output_dir=output_dir
     )
 
-# Standalone CLI entry points (argparse-based, alternative to dpt isa subcommands)
+# Standalone CLI entry points (argparse-based; same functionality as dpt isa subcommands)
 def get_isa_archive_cli():
     """Entry point for dpt-get-isa-archive."""
     from dp_tools.glds_api.isa import main

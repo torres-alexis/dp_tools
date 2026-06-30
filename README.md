@@ -14,17 +14,13 @@ Or from git: `pip install git+https://github.com/torres-alexis/dp_tools.git`
 
 ## Command-Line Tools
 
-The dp_tools package provides command-line tools for data processing workflows.
+The dp_tools package provides command-line tools for working with OSDR datasets.
 
-**Primary interface:** `dp_tools` or `dpt` alias.
+**Primary interface:** `dp_tools` and `dpt` are equivalent entry points.
 
-**Standalone commands** (same functionality):
-* `dpt-get-isa-archive` — download ISA archive
-* `dpt-isa-to-runsheet` — convert ISA archive to runsheet
+**Standalone commands:** `dpt-get-isa-archive`, `dpt-isa-to-runsheet`
 
 ### ISA Archive Management
-
-The `dpt isa` commands provide functionality for working with Investigation-Study-Assay (ISA) archives:
 
 #### Get ISA Archive
 
@@ -41,6 +37,9 @@ dpt isa get GLDS-194
 
 # Download ISA archive for OSD-194 to a specific directory
 dpt isa get OSD-194 --output-dir /path/to/output
+
+# Same via standalone command (downloads to current directory)
+dpt-get-isa-archive --accession GLDS-194
 ```
 
 #### Convert ISA archive (.zip) to Runsheet
@@ -61,20 +60,29 @@ Supported `CONFIG_TYPE` values include:
 * `amplicon_18s` (Specifically for 18S assays)
 
 **Examples:**
+
+Generate bulkRNAseq runsheet from ISA archive:
 ```bash
-# Convert ISA archive to a bulkRNASeq runsheet
 # Note: dpt isa get GLDS-194 downloads OSD-194_metadata_OSD-194-ISA.zip (GLDS maps to OSD)
 dpt isa get GLDS-194
 dpt isa to-runsheet GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive OSD-194_metadata_OSD-194-ISA.zip
+```
 
-# Convert ISA archive targeting only 16S amplicon assays
+Same via standalone command:
+```bash
+dpt-isa-to-runsheet --accession GLDS-194 --config-type bulkRNASeq --config-version Latest --isa-archive OSD-194_metadata_OSD-194-ISA.zip
+```
+
+Generate 16S amplicon runsheet from ISA archive:
+```bash
 dpt isa to-runsheet OSD-694 --config-type amplicon_16s --isa-archive OSD-694_metadata_OSD-694-ISA.zip
 # Output: OSD-694_amplicon_16S_v1_runsheet.csv
+```
 
-# Convert ISA archive using the generic amplicon config
-# This will find all amplicon assays (16S, 18S, ITS) and create separate runsheets
+Generate all relevant amplicon runsheets from ISA archive:
+```bash
 dpt isa to-runsheet OSD-694 --config-type amplicon --isa-archive OSD-694_metadata_OSD-694-ISA.zip
-# Example Outputs (if both 16S and ITS assays are present):
+# Example outputs if both 16S and ITS are present:
 # OSD-694_amplicon_16S_v1_runsheet.csv
 # OSD-694_amplicon_ITS_v1_runsheet.csv
 ```
@@ -89,19 +97,22 @@ The `dpt osd` commands provide functionality for interacting with the Open Scien
 dpt osd download-files <osd-id> <file-pattern> [--dry-run] [--y]
 ```
 
-Downloads files from OSDR that match a specified pattern.
+Downloads files from OSDR that match a glob-style pattern (shell wildcards: `*`, `?`).
 
 **Examples:**
 ```bash
-# Download files matching a pattern (regex)
-# Note: raw fastq may be inside .tar archives for some datasets; use .*\.tar$ for those
-dpt osd download-files OSD-194 ".*\.fastq\.gz$"
+# Download raw FASTQ files (individual .fastq.gz on repository)
+dpt osd download-files OSD-237 "*raw.fastq.gz"
+
+# OSD-194 also has per-sample raw fastqs; older studies may only have .tar archives
+dpt osd download-files OSD-194 "*raw.fastq.gz"
+dpt osd download-files OSD-194 "*tar"
 
 # Just list the URLs without downloading (dry run)
-dpt osd download-files OSD-194 ".*\.fastq\.gz$" --dry-run
+dpt osd download-files OSD-194 "*raw.fastq.gz" --dry-run
 
 # Download without interactive prompts
-dpt osd download-files OSD-194 ".*\.fastq\.gz$" --y
+dpt osd download-files OSD-194 "*raw.fastq.gz" --y
 ```
 
 #### Get Sample Names
@@ -110,8 +121,7 @@ dpt osd download-files OSD-194 ".*\.fastq\.gz$" --y
 dpt osd get-samples <osd-id> [--output OUTPUT]
 ```
 
-Extracts sample names from an OSD accession's ISA archive and saves them to a file.
-When only one assay file is found, it's automatically selected without prompting.
+Downloads the study's ISA archive from OSDR, then reads the `Sample Name` column from a single ISA table inside the zip. If exactly one assay table (`a_*`) is present, it is used automatically; otherwise you are prompted to choose from all assay and sample tables (`a_*` and `s_*`). Writes one name per line to the output file (default: `samples.txt`).
 
 **Examples:**
 ```bash
@@ -122,7 +132,9 @@ dpt osd get-samples OSD-194
 dpt osd get-samples OSD-194 --output my_samples.txt
 ```
 
-### Validation and Verification
+<!--
+
+Validation and Verification
 
 The `dpt validation` commands provide functionality for validating data processing outputs:
 
@@ -136,13 +148,14 @@ dpt validation spec PLUGIN_DIR DATA_DIR RUNSHEET_PATH [OPTIONS]
 * `DATA_DIR`: Root directory of processed dataset.
 * `RUNSHEET_PATH`: Path to runsheet CSV.
 
+-->
+
 For more detailed information on all commands, use the `--help` option:
 
 ```bash
 dpt --help
 dpt isa --help
 dpt osd --help
-dpt validation --help
 # Standalone commands
 dpt-get-isa-archive --help
 dpt-isa-to-runsheet --help
