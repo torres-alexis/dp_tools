@@ -36,7 +36,30 @@ pip install -e .
 
 ### Container
 
+**Release:**
+
 `quay.io/nasa_genelab/dp_tools:latest`
+
+**Interactive mode (experimental):**
+
+Interactive terminal-based download viewer for OSDR. `interactive` branch / `:interactive` image only.
+
+Features:
+
+- Category and subcategory tree with file sizes and checkbox selection
+- Filter files by name or pattern
+- Strip GLDS filename prefixes
+- Download selection or copy equivalent `download-files` command to terminal / clipboard
+
+```bash
+pip install "git+https://github.com/torres-alexis/dp_tools.git@interactive"
+```
+
+`quay.io/nasa_genelab/dp_tools:interactive`
+
+```bash
+docker run -it --rm quay.io/nasa_genelab/dp_tools:interactive dpt osd browse OSD-240
+```
 
 ## Command-Line Tools
 
