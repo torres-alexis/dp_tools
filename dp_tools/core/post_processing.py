@@ -16,9 +16,9 @@ from typing import (
     TypedDict,
     Union,
 )
+from importlib.resources import files
 from loguru import logger as log
 from dp_tools.core.configuration import load_config
-import pkg_resources
 
 from dp_tools.core.entity_model import Dataset, Group, Sample
 from dp_tools.core.files import isa_archive
@@ -38,10 +38,9 @@ def _load_config(
 ) -> dict:
     if isinstance(config, tuple):
         configuration = yaml.safe_load(
-            pkg_resources.resource_string(
-                __name__,
-                os.path.join("..", "config", f"{config[0]}_v{config[1]}.yaml"),
-            )
+            files("dp_tools.config")
+            .joinpath(f"{config[0]}_v{config[1]}.yaml")
+            .read_text()
         )
     elif isinstance(config, Path):
         configuration = yaml.safe_load(config.open())
@@ -70,10 +69,7 @@ def _load_config(
 
 def load_ISA_investigation_config() -> dict:
     configuration = yaml.safe_load(
-        pkg_resources.resource_string(
-            __name__,
-            os.path.join("..", "config", f"ISA_investigation.yaml"),
-        )
+        files("dp_tools.config").joinpath("ISA_investigation.yaml").read_text()
     )
 
     log.debug("Loaded the ISA investigation config")

@@ -1,17 +1,14 @@
 name: dp_tools
 channels:
-   - bioconda
-   - conda-forge
-   - defaults
+  - bioconda
+  - conda-forge
 dependencies:
-   - python=3.10 # required for in-house codebase compatibility
-   - pandas
-   - samtools
-   - isatools
-   - multiqc
-   - schema
-   - tabulate # used to generate markdown tables from pandas dataframe in post processing
-   - pytest
-   - pip
-   - pip:
-     - git+https://github.com/J-81/dp_tools.git@1.0.7rc2
+  - python=3.11
+  - pandas>=3.0
+  - samtools
+  - parallel
+  - curl
+  - pytest>=9
+  - pip
+  - pip:
+    - git+https://github.com/torres-alexis/dp_tools.git@v1.3.12

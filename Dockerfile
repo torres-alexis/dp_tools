@@ -1,35 +1,23 @@
-FROM ubuntu:20.04
+FROM python:3.11-slim-bookworm
 
-# Ensure no user interaction is requested
 ARG DEBIAN_FRONTEND=noninteractive
 
-# create group and user and install packages
 RUN groupadd -r genuser && \
     useradd -g genuser genuser && \
     mkdir /home/genuser && \
     chmod -R 777 /home/genuser && \
     apt-get update && \
-    apt-get install software-properties-common -y && \
-    add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get install python3.10 python3.10-distutils curl samtools zip -y && \
-    # ensure python3.10 is linked to python for shebang support
-    ln -s /usr/bin/python3.10 /usr/bin/python
-    
+    apt-get install -y --no-install-recommends curl samtools zip && \
+    rm -rf /var/lib/apt/lists/*
 
-# copy dp_tools into container
 COPY . /app
 
-# set ownership and permissions
 RUN chown -R genuser:genuser /app && \
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
-    pip install --ignore-installed PyYAML /app &&  \
-    # save space in image by removing source code after pip install
+    pip install --ignore-installed PyYAML /app && \
     rm -rf /app
 
-# Add local bin to path
 ENV PATH=/home/genuser/.local/bin:$PATH
 
-# swith to user
 USER genuser
 
 WORKDIR /home/genuser

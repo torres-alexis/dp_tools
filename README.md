@@ -1,28 +1,42 @@
 # dp_tools
 
-A collection of tools used for data processing workflows used for my work at NASA GeneLab
+A collection of tools used for data processing workflows used for my work at NASA GeneLab.
 
-[Current documentation](https://torres-alexis.github.io/dp_tools/dp_tools.html) (hosted on github pages)
+[Current documentation](https://torres-alexis.github.io/dp_tools/dp_tools.html)
 
 ## Installation
 
+Python **3.11+** required.
+
+### Release
+
+**pip:**
+
 ```bash
+pip install git+https://github.com/torres-alexis/dp_tools.git@v1.3.12
+```
+
+**Conda environment:**
+
+```bash
+curl -LO https://raw.githubusercontent.com/torres-alexis/dp_tools/v1.3.12/condaEnv.yaml
+conda env create -f condaEnv.yaml
+conda activate dp_tools
+```
+
+Optional for pip only: `parallel` and `curl` on PATH speed up `dpt osd download-files` (`apt install parallel curl` or `conda install -c conda-forge parallel curl`). Otherwise downloads use threaded Python `requests`.
+
+### Development
+
+```bash
+git clone https://github.com/torres-alexis/dp_tools.git
+cd dp_tools
 pip install -e .
 ```
 
-Or from git: `pip install git+https://github.com/torres-alexis/dp_tools.git`
+### Container
 
-### System dependencies (optional)
-
-`dpt osd download-files` uses **GNU parallel** and **curl** for faster parallel downloads when both are on `PATH`. If either is missing, it falls back to threaded downloads via Python `requests`.
-
-```bash
-# conda / mamba
-conda install -c conda-forge parallel curl
-
-# Debian / Ubuntu
-sudo apt install parallel curl
-```
+`quay.io/nasa_genelab/dp_tools:latest`
 
 ## Command-Line Tools
 
@@ -64,9 +78,9 @@ Converts an ISA archive to a runsheet compatible with GeneLab processing workflo
 
 Supported `CONFIG_TYPE` values include:
 * `bulkRNASeq`
-* `microarray` (Generic DNA microarray, creates runsheets for any Agilent or Affymetrix assays found in the ISA archive)
-* `microarray_agilent` (Specifically for Agilent 1-channel assays)
-* `microarray_affymetrix` (Specifically for Affymetrix assays)
+* `microarray` (auto-detects Agilent or Affymetrix assays in the ISA archive)
+* `microarray_agilent` (Agilent 1-channel assays)
+* `microarray_affymetrix` (Affymetrix assays)
 * `methylSeq`
 * `metagenomics`
 * `amplicon` (Generic amplicon, creates runsheets for any 16S, 18S, or ITS assays found in the ISA archive)
@@ -124,11 +138,11 @@ dpt osd download-files <osd-id> [FILE-PATTERN] [OPTIONS]
 
 **Category filtering:** `-c` and `--subcategory` are repeatable. Multiple values are OR'd within each level (e.g. two `--subcategory` flags = files in subcategory A **or** B). Omit `--subcategory` to include all subcategories under the selected `-c` value(s).
 
-**Other options:** `--dry-run`, `-y` (no prompt), `-o` output dir, `-j` parallel jobs. Uses GNU `parallel` + `curl` when available; otherwise threaded downloads.
+**Other options:** `--dry-run`, `-y` (no prompt), `-o` output dir, `-j` parallel jobs. Uses GNU `parallel` + `curl` when available; otherwise threaded Python `requests`.
 
 **Examples:**
 
-List the OSDR file hierarchy (matches the repository browser):
+List the OSDR file hierarchy:
 ```bash
 dpt osd download-files OSD-240 --list-categories
 ```
@@ -172,7 +186,7 @@ dpt osd download-files OSD-194 "*tar" -o ./data -j 10 --y
 dpt osd get-samples <osd-id> [--output OUTPUT] [-t TABLE_INDEX] [-i]
 ```
 
-Downloads the study's ISA archive from OSDR, then reads the `Sample Name` column from a single ISA table inside the zip. If exactly one assay table (`a_*`) is present, it is used automatically. If multiple tables exist, lists indices and exits; pass `--table-index` / `-t` (cluster-safe) or `-i` / `--interactive` to choose at a prompt.
+Downloads the study's ISA archive from OSDR, then reads the `Sample Name` column from a single ISA table inside the zip. If exactly one assay table (`a_*`) is present, it is used automatically. If multiple tables exist, lists indices and exits; pass `--table-index` / `-t` or `-i` / `--interactive` to choose a table.
 
 **Examples:**
 ```bash
@@ -183,7 +197,7 @@ dpt osd get-samples OSD-694 --table-index 0
 
 dpt osd get-samples OSD-194 --output my_samples.txt
 
-# Interactive selection (local use)
+# Interactive table selection
 dpt osd get-samples OSD-694 -i
 ```
 

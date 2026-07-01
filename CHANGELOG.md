@@ -19,16 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - README: expanded OSD/ISA CLI docs; validation section commented out; download examples split by selection mode; system deps (`curl`, GNU `parallel`) documented
-- `dpt osd get-samples`: multiple ISA tables now list indices and exit (cluster-safe); prompt only with `-i`
+- `dpt osd get-samples`: multiple ISA tables now list indices and exit; use `-t` / `--table-index` or `-i` / `--interactive` to choose
 - `dpt isa convert`: silent alias for `to-runsheet` (deprecation warning removed)
 - `dp_tools` and `dpt` documented as equivalent entry points
 - MultiQC removed from default package dependencies; lazy-loaded when validation/metrics code runs (`pip install 'multiqc==1.26'`)
-- Dependency minimums bumped (pandas 3.x, pandera 0.32.x, pytest 9.x, and others); dropped unused `importlib_metadata` (stdlib on Python 3.10+)
+- Dependency minimums bumped (pandas 3.x, pandera 0.32.x, pytest 9.x, and others); dropped unused `importlib_metadata` (stdlib on Python 3.11+)
+- Minimum Python version raised to **3.11** (`requires-python`; required by pandas 3.x)
+- Dockerfile: `python:3.11-slim-bookworm` base (Debian bookworm); Python 3.11 from official image
+- CI and Gitpod: Python 3.11
 
 ### Fixed
 
 - README: `download-files` documented as glob patterns (not regex)
 - Pandera import: use `pandera.pandas` to silence deprecation warning on CLI startup
+- Dockerfile build failure on focal/deadsnakes; image now uses `python:3.11-slim-bookworm`
 
 ## [1.3.11]
 
