@@ -40,20 +40,25 @@ pip install -e .
 
 `quay.io/nasa_genelab/dp_tools:latest`
 
-**Interactive mode (experimental):**
+### Interactive (experimental)
 
-Interactive terminal-based download viewer for OSDR. `interactive` branch / `:interactive` image only.
+Interactive terminal-based download viewer for OSDR (`dpt osd browse`). `interactive` branch / `:interactive` image only.
 
-Features:
-
-- Category and subcategory tree with file sizes and checkbox selection
-- Filter files by name or pattern
-- Strip GLDS filename prefixes
-- Download selection or copy equivalent `download-files` command to terminal / clipboard
+**pip:**
 
 ```bash
-pip install "git+https://github.com/torres-alexis/dp_tools.git@interactive"
+pip install git+https://github.com/torres-alexis/dp_tools.git@interactive
 ```
+
+**Conda environment:**
+
+```bash
+curl -LO https://raw.githubusercontent.com/torres-alexis/dp_tools/interactive/condaEnv.yaml
+conda env create -f condaEnv.yaml
+conda activate dpti
+```
+
+**Container:**
 
 `quay.io/nasa_genelab/dp_tools:interactive`
 
