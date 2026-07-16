@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `dpt osd browse`: TTY curses file picker with checkbox selection; confirm screen supports preserve-dirs, strip-prefix, copy download command, and download
+
+### Changed
+
+- Pin MultiQC to 1.35 and samtools to 1.24 in `condaEnv.yaml`
+
 ## [1.3.12]
 
 ### Added

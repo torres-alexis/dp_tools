@@ -208,6 +208,29 @@ dpt osd download-files OSD-237 "*raw.fastq.gz"
 dpt osd download-files OSD-194 "*tar" -o ./data -j 10 --y
 ```
 
+#### Browse Files (interactive)
+
+```bash
+dpt osd browse <osd-id> [-o OUTPUT_DIR] [-j JOBS] [--preserve-dirs]
+```
+
+TTY-only category tree with checkbox selection. After confirm, selected files download via the same path as `download-files`.
+
+**Browse keys**
+
+| Key | Action |
+|-----|--------|
+| `j`/`k`, arrows | Move cursor |
+| `Space` | Toggle file or folder |
+| `a` | Select/deselect all (visible when filter on) |
+| `Enter`, `l`, `→` | Expand/collapse folder |
+| `f` | Filter screen (preview, then apply) |
+| `g` | Confirm download |
+| `?` | Help |
+| `q`, `Esc` | Quit |
+
+**Confirm keys:** `y` download · `c` copy command · `p` preserve-dirs · `s`/`S`/`e` strip prefix · `Esc`/`b` back
+
 #### Get Sample Names
 
 ```bash
