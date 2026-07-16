@@ -13,48 +13,36 @@ import yaml
 import pandas as pd
 
 GENELAB_DATASET_FILES = "https://osdr.nasa.gov/osdr/data/osd/files/{accession_number}"
-""" Template URL to access json of files for a single GLDS accession ID """
+"""Template URL to access json of files for a single GLDS accession ID."""
 
 FILE_RETRIEVAL_URL_PREFIX = "https://osdr.nasa.gov{suffix}"
-""" Used to retrieve files using remote url suffixes listed in the 'Data Query' API """
+"""Used to retrieve files using remote url suffixes listed in the 'Data Query' API."""
+
+
+def _load_osd_files_table(osd_id: str) -> pd.DataFrame:
+    osd_num = osd_id.split("-", 1)[1]
+    url = GENELAB_DATASET_FILES.format(accession_number=osd_num)
+    log.info(f"URL Source: {url}")
+    with urlopen(url) as response:
+        data = yaml.safe_load(response.read())
+    studies = data.get("studies") or {}
+    if osd_id not in studies:
+        raise ValueError(
+            f"{osd_id} is not reachable on OSD website. This study likely does not exist"
+        )
+    return pd.DataFrame(studies[osd_id]["study_files"])
+
 
 @functools.cache
 def get_table_of_files(accession: str) -> pd.DataFrame:
-    """Retrieve table of filenames associated with a GLDS or OSD accession ID.
-    
-    This function handles both GLDS and OSD accession types:
-    - For OSD accessions, it directly queries the files API
-    - For GLDS accessions, it finds the corresponding OSD accession via the search API
-    
-    Note: This function is cached to prevent extra api calls. This can desync from the repository 
-    in the rare case that the accession is updated in between related calls.
-
-    :param accession: Accession ID, e.g. 'GLDS-194' or 'OSD-194'
-    :type accession: str
-    :return: A dataframe containing each filename including associated metadata like datatype
-    :rtype: pd.DataFrame
-    """
-    # Check accession type
+    """Retrieve table of filenames associated with a GLDS or OSD accession ID."""
     log.info(f"Retrieving table of files for {accession}")
-    
-    # Direct access for OSD accessions
+
     if accession.startswith("OSD-"):
-        accession_num = accession.split("-")[1]
-        url = GENELAB_DATASET_FILES.format(accession_number=accession_num)
-        
-        # fetch data
-        log.info(f"URL Source: {url}")
-        print(url)
-        with urlopen(url) as response:
-            data = yaml.safe_load(response.read())
-            try:
-                df = pd.DataFrame(data['studies'][accession]['study_files'])
-            except KeyError:
-                raise ValueError(f"{accession} is not reachable on OSD website. This study likely does not exist")
-        return df
-    
+        return _load_osd_files_table(accession)
+
     # For GLDS accessions, we MUST use the search API to find the OSD mapping
-    elif accession.startswith("GLDS-"):
+    if accession.startswith("GLDS-"):
         log.info(f"Searching for OSD mapping for {accession}")
         search_url = "https://osdr.nasa.gov/osdr/data/search?ffield=Data+Source+Type&fvalue=cgene&size=5000"
         
@@ -75,28 +63,18 @@ def get_table_of_files(accession: str) -> pd.DataFrame:
                         osd_accession = source.get("Accession")  # e.g., "OSD-489"
                         log.info(f"Found mapping: {accession} → {osd_accession}")
                         found_mapping = True
-                        
-                        # Now get the files for this OSD
-                        osd_num = osd_accession.split("-")[1]
-                        file_url = GENELAB_DATASET_FILES.format(accession_number=osd_num)
-                        log.info(f"Fetching files from: {file_url}")
-                        
-                        with urlopen(file_url) as file_response:
-                            file_data = yaml.safe_load(file_response.read())
-                            try:
-                                df = pd.DataFrame(file_data['studies'][osd_accession]['study_files'])
-                                return df
-                            except KeyError:
-                                raise ValueError(f"{osd_accession} is not reachable on OSD website after mapping from {accession}")
+                        return _load_osd_files_table(osd_accession)
                 
                 # If we get here, no mapping was found
                 if not found_mapping:
                     raise ValueError(f"Could not find OSD mapping for {accession} in search results")
                     
         except Exception as e:
-            raise ValueError(f"Error retrieving files for {accession}: {str(e)}")
-    else:
-        raise ValueError(f"Invalid accession format: {accession}. Must start with 'OSD-' or 'GLDS-'.")
+            raise ValueError(f"Error retrieving files for {accession}: {str(e)}") from e
+    raise ValueError(
+        f"Invalid accession format: {accession}. Must start with 'OSD-' or 'GLDS-'."
+    )
+
 
 def find_matching_filenames(accession: str, filename_pattern: str) -> list[str]:
     """Returns list of file names that match the provided pattern.
@@ -136,6 +114,176 @@ def filter_filenames(
         df = df[df["file_name"].str.contains(regex_pattern, regex=True)]
 
     return df["file_name"].tolist()
+
+
+def _safe_path_segment(segment: str) -> str:
+    segment = segment.strip()
+    for sep in ("/", "\\"):
+        segment = segment.replace(sep, "_")
+    while ".." in segment:
+        segment = segment.replace("..", "_")
+    if segment == ".":
+        return "_"
+    return segment or "_"
+
+
+def relative_download_path(row: pd.Series) -> str:
+    """Build a relative output path from OSDR category metadata."""
+    from pathlib import PurePosixPath
+
+    parts: list[str] = []
+    for col in ("category", "subcategory", "subdirectory"):
+        val = row.get(col, "")
+        if pd.notna(val) and str(val).strip():
+            parts.append(_safe_path_segment(str(val)))
+    parts.append(_safe_path_segment(str(row["file_name"])))
+    return str(PurePosixPath(*parts))
+
+
+_RAW_SUBCATEGORIES = frozenset(
+    {
+        "Raw sequence data",
+        "Raw Sequence Data",
+        "Raw Data",
+    }
+)
+
+
+def _longest_common_prefix_trimmed(names: list[str]) -> str:
+    if not names:
+        return ""
+    if len(names) == 1:
+        return _study_glds_prefix(names)
+    prefix = names[0]
+    for name in names[1:]:
+        while not name.startswith(prefix):
+            prefix = prefix[:-1]
+            if not prefix:
+                return ""
+    if prefix and not prefix.endswith("_"):
+        cut = prefix.rfind("_")
+        prefix = prefix[: cut + 1] if cut >= 0 else ""
+    return prefix
+
+
+def _study_glds_prefix(filenames: list[str]) -> str:
+    for name in filenames:
+        if name.startswith("GLDS-"):
+            acc, _, rest = name.partition("_")
+            if rest or name.endswith("_"):
+                return f"{acc}_"
+    return ""
+
+
+def raw_data_filenames(filenames: list[str], df: pd.DataFrame) -> list[str]:
+    """Return selected filenames that look like raw sequencing inputs."""
+    if not filenames or "file_name" not in df.columns:
+        return []
+    lookup = df.set_index("file_name", drop=False)
+    raw: list[str] = []
+    for name in filenames:
+        if name not in lookup.index:
+            continue
+        row = lookup.loc[name]
+        sub = str(row.get("subcategory", "") or "").strip()
+        if sub in _RAW_SUBCATEGORIES or "raw" in sub.lower():
+            raw.append(name)
+            continue
+        lower = name.lower()
+        if "raw" in lower and (".fastq" in lower or ".fq" in lower):
+            raw.append(name)
+    return raw
+
+
+def detect_strip_prefix(
+    filenames: list[str], df: pd.DataFrame, level: int
+) -> str | None:
+    """Suggest a filename prefix to strip (cycle 1=study, 2=raw LCP, 3=all LCP)."""
+    if level <= 0 or not filenames:
+        return None
+    glds = [name for name in filenames if name.startswith("GLDS-")]
+    if not glds:
+        return None
+    floor = _study_glds_prefix(glds)
+    if level == 1:
+        return floor or None
+    pool = raw_data_filenames(filenames, df) if level == 2 else glds
+    if len(pool) < 2:
+        pool = glds
+    prefix = _longest_common_prefix_trimmed(pool)
+    if floor and (not prefix or len(prefix) < len(floor)):
+        prefix = floor
+    return prefix or None
+
+
+def apply_strip_prefix(filename: str, prefix: str | None) -> str:
+    if prefix and filename.startswith(prefix):
+        return filename[len(prefix) :]
+    return filename
+
+
+def count_strip_affected(filenames: list[str], prefix: str | None) -> int:
+    """How many filenames would change when applying strip_prefix."""
+    if not prefix:
+        return 0
+    return sum(1 for name in filenames if name.startswith(prefix))
+
+
+def strip_output_path(relative_path: str, prefix: str | None) -> str:
+    """Apply strip prefix to the basename of a relative output path."""
+    from pathlib import PurePosixPath
+
+    if not prefix:
+        return relative_path
+    path = PurePosixPath(relative_path)
+    stripped = apply_strip_prefix(path.name, prefix)
+    if stripped == path.name:
+        return relative_path
+    if path.parent.parts:
+        return str(path.parent / stripped)
+    return stripped
+
+
+def find_download_path_collisions(
+    filenames: list[str],
+    *,
+    df: pd.DataFrame | None = None,
+    preserve_dirs: bool = False,
+    strip_prefix: str | None = None,
+) -> dict[str, list[str]]:
+    """Map output path -> original filenames when multiple inputs share one destination."""
+    if not filenames:
+        return {}
+
+    by_name = df.set_index("file_name", drop=False) if df is not None else None
+    buckets: dict[str, list[str]] = {}
+    for name in filenames:
+        if preserve_dirs and by_name is not None and name in by_name.index:
+            output_path = relative_download_path(by_name.loc[name])
+        else:
+            output_path = name
+        if strip_prefix:
+            output_path = strip_output_path(output_path, strip_prefix)
+        buckets.setdefault(output_path, []).append(name)
+    return {path: orig for path, orig in buckets.items() if len(orig) > 1}
+
+
+def find_strip_collisions(
+    filenames: list[str],
+    prefix: str | None,
+    *,
+    df: pd.DataFrame | None = None,
+    preserve_dirs: bool = False,
+) -> dict[str, list[str]]:
+    """Map output path -> original filenames when stripping would collide on disk."""
+    if not prefix:
+        return {}
+    return find_download_path_collisions(
+        filenames,
+        df=df,
+        preserve_dirs=preserve_dirs,
+        strip_prefix=prefix,
+    )
 
 
 def filenames_from_isa_assay(

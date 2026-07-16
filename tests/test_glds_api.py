@@ -6,7 +6,8 @@ import re
 from dp_tools.glds_api.commons import (
     get_table_of_files,
     retrieve_file_url,
-    find_matching_filenames
+    find_matching_filenames,
+    relative_download_path,
 )
 
 
@@ -193,3 +194,43 @@ def test_find_matching_filenames_for_glds570(mock_get_table, mock_re_search):
         accession = "GLDS-570"
         filenames = find_matching_filenames(accession, filename_pattern="*-ISA.zip")
         assert filenames == ['OSD-576_metadata_OSD-576-ISA.zip']
+
+
+def test_relative_download_path():
+    row = pd.Series(
+        {
+            "category": "RNA-Seq",
+            "subcategory": "Raw sequence data",
+            "subdirectory": "FastQC Reports",
+            "file_name": "sample.fastq.gz",
+        }
+    )
+    assert (
+        relative_download_path(row)
+        == "RNA-Seq/Raw sequence data/FastQC Reports/sample.fastq.gz"
+    )
+
+    flat_row = pd.Series(
+        {
+            "category": "Study Metadata Files",
+            "subcategory": "",
+            "subdirectory": "",
+            "file_name": "OSD-240_metadata_GLDS-240-ISA.zip",
+        }
+    )
+    assert (
+        relative_download_path(flat_row)
+        == "Study Metadata Files/OSD-240_metadata_GLDS-240-ISA.zip"
+    )
+
+
+def test_relative_download_path_sanitizes_unsafe_segments():
+    row = pd.Series(
+        {
+            "category": "RNA-Seq",
+            "subcategory": "..",
+            "subdirectory": "",
+            "file_name": "../escape.fastq.gz",
+        }
+    )
+    assert relative_download_path(row) == "RNA-Seq/_/__escape.fastq.gz"
