@@ -14,6 +14,10 @@ from loguru import logger
 import pandas as pd
 
 from dp_tools.glds_api import commons, isa
+from dp_tools.glds_api.interactive_browser import (
+    BrowserAction,
+    run_file_browser,
+)
 from dp_tools.core.files import isa_archive
 
 @click.group()
@@ -21,36 +25,44 @@ def osd():
     pass
 
 
-def _download_with_requests(filename: str, url: str, output_dir: Path) -> None:
-    logger.info(f"Downloading {filename}")
+def _download_with_requests(relative_path: str, url: str, output_dir: Path) -> str:
     response = requests.get(url, stream=True)
     response.raise_for_status()
-    with open(output_dir / filename, "wb") as f:
+    dest = output_dir / relative_path
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with open(dest, "wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
+    return relative_path
 
 
 def _download_with_parallel(
     downloads: list[tuple[str, str]], output_dir: Path, jobs: int
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    commands = [
-        "curl -L -s -o "
-        f"{shlex.quote(str(output_dir / filename))} "
-        f"{shlex.quote(url)}"
-        for filename, url in downloads
-    ]
+    commands = []
+    for relative_path, url in downloads:
+        dest = output_dir / relative_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        commands.append(
+            "curl -L -s -o "
+            f"{shlex.quote(str(dest))} "
+            f"{shlex.quote(url)}"
+        )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as cmd_file:
         cmd_file.write("\n".join(commands) + "\n")
         cmd_path = cmd_file.name
 
+    total = len(downloads)
     try:
+        logger.info(f"Running GNU parallel (-j {jobs}) for {total} file(s)")
         subprocess.run(
-            f"parallel --xapply -j {jobs} < {shlex.quote(cmd_path)}",
+            f"parallel --bar --xapply -j {jobs} < {shlex.quote(cmd_path)}",
             shell=True,
             check=True,
         )
+        logger.success(f"Finished {total} file(s) in {output_dir.resolve()}")
     finally:
         os.unlink(cmd_path)
 
@@ -59,13 +71,23 @@ def _download_with_threads(
     downloads: list[tuple[str, str]], output_dir: Path, jobs: int
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    total = len(downloads)
+    done = 0
     with ThreadPoolExecutor(max_workers=jobs) as executor:
-        futures = [
-            executor.submit(_download_with_requests, filename, url, output_dir)
-            for filename, url in downloads
-        ]
-        for future in as_completed(futures):
-            future.result()
+        future_to_name = {
+            executor.submit(_download_with_requests, relative_path, url, output_dir): relative_path
+            for relative_path, url in downloads
+        }
+        for future in as_completed(future_to_name):
+            filename = future_to_name[future]
+            try:
+                future.result()
+            except Exception as exc:
+                logger.error(f"[failed] {filename}: {exc}")
+                raise
+            done += 1
+            logger.info(f"[{done}/{total}] {filename}")
+    logger.success(f"Finished {total} file(s) in {output_dir.resolve()}")
 
 
 def _run_downloads(
@@ -80,15 +102,16 @@ def _run_downloads(
         raise click.ClickException("No files matched the selection.")
 
     if dry_run:
-        logger.info("Output pairs of 'url' 'filename'")
-        for filename, url in downloads:
-            click.echo(f"{url} {filename}")
+        logger.info("Output pairs of 'url' 'relative_output_path'")
+        for relative_path, url in downloads:
+            click.echo(f"{url} {relative_path}")
         return
 
     if not non_interactive:
         input(f"Ready to download {len(downloads)} file(s)... Press enter to continue.")
 
-    output_path = Path(output_dir)
+    output_path = Path(output_dir).resolve()
+    logger.info(f"Output directory: {output_path}")
     if shutil.which("parallel") and shutil.which("curl"):
         logger.info(f"Downloading {len(downloads)} file(s) with GNU parallel (-j {jobs})")
         _download_with_parallel(downloads, output_path, jobs)
@@ -101,11 +124,106 @@ def _run_downloads(
         _download_with_threads(downloads, output_path, jobs)
 
 
-def _build_downloads(osd_id: str, filenames: list[str]) -> list[tuple[str, str]]:
-    return [
-        (filename, commons.retrieve_file_url(accession=osd_id, filename=filename))
-        for filename in filenames
-    ]
+def _build_downloads(
+    osd_id: str,
+    filenames: list[str] | None = None,
+    *,
+    file_ids: list[str] | None = None,
+    preserve_dirs: bool = False,
+    strip_prefix: str | None = None,
+    df: pd.DataFrame | None = None,
+) -> list[tuple[str, str]]:
+    total = len(file_ids) if file_ids is not None else len(filenames or [])
+    if total == 0:
+        return []
+    if df is None:
+        df = commons.get_table_of_files(osd_id)
+    if preserve_dirs:
+        logger.info("Preserving OSDR category/subdirectory layout under output dir")
+    if strip_prefix:
+        logger.info(f"Stripping output basename prefix: {strip_prefix!r}")
+
+    if file_ids is not None:
+        from dp_tools.glds_api.browser.files import (
+            build_download_plan_from_ids,
+            build_file_maps,
+            find_selection_path_collisions,
+        )
+
+        maps = build_file_maps(df)
+        collisions = find_selection_path_collisions(
+            file_ids,
+            maps,
+            preserve_dirs=preserve_dirs,
+            strip_prefix=strip_prefix,
+        )
+        if collisions:
+            output_path, originals = next(iter(collisions.items()))
+            label = "output path" if preserve_dirs else "output name"
+            reason = (
+                f"Strip prefix {strip_prefix!r} would collide"
+                if strip_prefix
+                else "Duplicate"
+            )
+            raise click.ClickException(
+                f"{reason} for {label} {output_path!r} "
+                f"({originals[0]!r} vs {originals[1]!r})."
+            )
+        plan = build_download_plan_from_ids(
+            file_ids,
+            maps,
+            preserve_dirs=preserve_dirs,
+            strip_prefix=strip_prefix,
+        )
+    else:
+        by_name = df.set_index("file_name", drop=False)
+        collisions = commons.find_download_path_collisions(
+            filenames or [],
+            df=df,
+            preserve_dirs=preserve_dirs,
+            strip_prefix=strip_prefix,
+        )
+        if collisions:
+            output_path, originals = next(iter(collisions.items()))
+            label = "output path" if preserve_dirs else "output name"
+            reason = (
+                f"Strip prefix {strip_prefix!r} would collide"
+                if strip_prefix
+                else "Duplicate"
+            )
+            raise click.ClickException(
+                f"{reason} for {label} {output_path!r} "
+                f"({originals[0]!r} vs {originals[1]!r})."
+            )
+        plan = []
+        for filename in filenames or []:
+            row = by_name.loc[filename]
+            if isinstance(row, pd.DataFrame):
+                raise click.ClickException(
+                    f"Ambiguous filename {filename!r} (multiple repository paths). "
+                    "Use `dpt osd browse` to pick files by path."
+                )
+            relative_path = (
+                commons.relative_download_path(row)
+                if preserve_dirs
+                else filename
+            )
+            if strip_prefix:
+                relative_path = commons.strip_output_path(relative_path, strip_prefix)
+            plan.append((relative_path, filename))
+
+    if total > 1:
+        logger.info(f"Resolving URLs for {total} file(s)...")
+    downloads: list[tuple[str, str]] = []
+    for i, (relative_path, filename) in enumerate(plan, start=1):
+        downloads.append(
+            (relative_path, commons.retrieve_file_url(accession=osd_id, filename=filename))
+        )
+        if total > 10 and i % max(1, total // 10) == 0:
+            logger.info(f"Resolved {i}/{total} URLs...")
+    if total > 1:
+        logger.info(f"Resolved {total} URL(s)")
+    return downloads
 
 
 @click.command()
@@ -119,6 +237,17 @@ def _build_downloads(osd_id: str, filenames: list[str]) -> list[tuple[str, str]]
 @click.option("--data-file-column", default="Raw Data File", show_default=True, help="ISA assay column listing files to download (used with --isa-assay).")
 @click.option("-c", "--category", multiple=True, help="OSDR repository category (repeatable). Use --list-categories to see options.")
 @click.option("--subcategory", multiple=True, help="OSDR repository subcategory (repeatable; narrows --category selection).")
+@click.option("--file", "exact_files", multiple=True, help="Exact filename(s) to download (repeatable).")
+@click.option(
+    "--preserve-dirs",
+    is_flag=True,
+    help="Write files under category/subcategory/subdirectory paths from OSDR metadata (default: flat output dir).",
+)
+@click.option(
+    "--strip-prefix",
+    default=None,
+    help="Remove this prefix from each output basename (API lookup still uses full OSDR names).",
+)
 @click.option("--list-categories", is_flag=True, help="List file categories for this study and exit.")
 def download_files(
     osd_id,
@@ -131,26 +260,39 @@ def download_files(
     data_file_column,
     category,
     subcategory,
+    exact_files,
+    preserve_dirs,
+    strip_prefix,
     list_categories,
 ):
     if list_categories:
         click.echo(commons.format_file_hierarchy(osd_id))
         return
 
-    if isa_assay:
+    if exact_files:
+        if isa_assay or category or subcategory or file_pattern:
+            raise click.UsageError(
+                "--file cannot be combined with FILE-PATTERN, --isa-assay, or --category."
+            )
+        filenames = list(exact_files)
+        logger.info(f"Downloading {len(filenames)} explicitly listed file(s)")
+    elif isa_assay:
         if category or subcategory or file_pattern:
             raise click.UsageError(
                 "--isa-assay cannot be combined with FILE-PATTERN or --category."
             )
     elif not category and not file_pattern:
         raise click.UsageError(
-            "Specify FILE-PATTERN, --isa-assay / -a, or --category / -c. "
-            "Use --list-categories to inspect repository categories."
+            "Specify FILE-PATTERN, --file, --isa-assay / -a, or --category / -c. "
+            "Use --list-categories to inspect repository categories, or "
+            "`dpt osd browse` for an interactive picker."
         )
 
     logger.info(f"Fetching file list for {osd_id}")
 
-    if isa_assay:
+    if exact_files:
+        pass
+    elif isa_assay:
         target_filenames = commons.filenames_from_isa_assay(
             Path(isa_assay), column=data_file_column
         )
@@ -192,13 +334,67 @@ def download_files(
                 f"Found {len(filenames)} file(s) matching glob pattern: {file_pattern}"
             )
 
+    if exact_files:
+        available = set(commons.get_table_of_files(osd_id)["file_name"])
+        missing = [f for f in filenames if f not in available]
+        if missing:
+            raise click.ClickException(
+                f"File(s) not on OSDR for {osd_id}: {missing[:5]}"
+                + (" ..." if len(missing) > 5 else "")
+            )
+
     _run_downloads(
         osd_id,
-        _build_downloads(osd_id, filenames),
+        _build_downloads(
+            osd_id,
+            filenames,
+            preserve_dirs=preserve_dirs,
+            strip_prefix=strip_prefix,
+        ),
         dry_run,
         non_interactive,
         output_dir,
         jobs,
+    )
+
+
+@click.command()
+@click.argument("osd-id")
+@click.option("-o", "--output-dir", default=".", show_default=True, type=click.Path(), help="Directory for downloaded files.")
+@click.option("-j", "--jobs", default=10, show_default=True, type=int, help="Number of parallel downloads.")
+@click.option(
+    "--preserve-dirs",
+    is_flag=True,
+    help="Write files under category/subcategory/subdirectory paths from OSDR metadata (default: flat output dir).",
+)
+def browse(osd_id, output_dir, jobs, preserve_dirs):
+    """Browse OSDR files interactively (checkbox tree + confirm menu)."""
+    try:
+        result = run_file_browser(
+            osd_id,
+            preserve_dirs=preserve_dirs,
+            output_dir=output_dir,
+            jobs=jobs,
+        )
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if result.action == BrowserAction.EXIT or not result.selected_files:
+        return
+
+    _run_downloads(
+        osd_id,
+        _build_downloads(
+            osd_id,
+            file_ids=result.selected_file_ids,
+            preserve_dirs=result.preserve_dirs,
+            strip_prefix=result.strip_prefix,
+            df=result.file_table,
+        ),
+        dry_run=False,
+        non_interactive=True,
+        output_dir=output_dir,
+        jobs=jobs,
     )
 
 
@@ -375,5 +571,6 @@ def check_if(osd_id, includes_assay_type, includes_assay_type_on_platform, inclu
 
 
 osd.add_command(download_files)
+osd.add_command(browse)
 osd.add_command(check_if)
 osd.add_command(get_samples)
