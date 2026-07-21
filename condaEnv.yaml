@@ -9,6 +9,7 @@ dependencies:
   - parallel
   - curl
   - pytest>=9
+  - multiqc=1.35
   - pip
   - pip:
     - git+https://github.com/torres-alexis/dp_tools.git@v1.3.12

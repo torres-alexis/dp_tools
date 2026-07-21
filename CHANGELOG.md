@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dpt osd get-samples`: multiple ISA tables now list indices and exit; use `-t` / `--table-index` or `-i` / `--interactive` to choose
 - `dpt isa convert`: silent alias for `to-runsheet` (deprecation warning removed)
 - `dp_tools` and `dpt` documented as equivalent entry points
-- MultiQC removed from default package dependencies; lazy-loaded when validation/metrics code runs (`pip install 'multiqc==1.26'`)
+- MultiQC updated from 1.26 to 1.35
 - Dependency minimums bumped (pandas 3.x, pandera 0.32.x, pytest 9.x, and others); dropped unused `importlib_metadata` (stdlib on Python 3.11+)
 - Minimum Python version raised to **3.11** (`requires-python`; required by pandas 3.x)
 - Dockerfile: `python:3.11-slim-bookworm` base (Debian bookworm); Python 3.11 from official image

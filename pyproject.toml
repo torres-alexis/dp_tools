@@ -27,7 +27,7 @@ dependencies = [
     "pandas>=3.0.3",
     "schema>=0.7.8",
     "tabulate>=0.10.0",
-    # "multiqc==1.26",  # optional: validation / metrics extraction (pip install multiqc==1.26)
+    "multiqc==1.35",
     "pandera>=0.32.1",
     "click>=8.4.2",
     "loguru>=0.7.3",
