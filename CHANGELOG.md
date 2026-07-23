@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix isa-to-runsheet Has Tech Reps ISA field mapping
 - README: `download-files` documented as glob patterns (not regex)
 - Pandera import: use `pandera.pandas` to silence deprecation warning on CLI startup
 - Dockerfile build failure on focal/deadsnakes; image now uses `python:3.11-slim-bookworm`
