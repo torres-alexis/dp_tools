@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bulkRNASeq` config v4: `Has Tech Reps` maps from ISA `Parameter Value[Has Technical Reps]`
 - `dpt osd download-files`: parallel downloads (`-j`), output directory (`-o`)
 - `dpt osd download-files`: ISA assay selection (`-a` / `--isa-assay`, `--data-file-column`; default `Raw Data File`)
 - `dpt osd download-files`: OSDR category filtering (`-c` / `--category`, repeatable `--subcategory`, `--list-categories`)
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `bulkRNASeq` Latest now aliases v4
 - README: expanded OSD/ISA CLI docs; validation section commented out; download examples split by selection mode; system deps (`curl`, GNU `parallel`) documented
 - `dpt osd get-samples`: multiple ISA tables now list indices and exit; use `-t` / `--table-index` or `-i` / `--interactive` to choose
 - `dpt isa convert`: silent alias for `to-runsheet` (deprecation warning removed)
