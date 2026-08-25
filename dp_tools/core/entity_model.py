@@ -317,35 +317,45 @@ class Dataset:
 
 
 def multiqc_run_to_dataframes(paths: list[Path]) -> dict:
-    multiqc, report = require_multiqc()
-    try:
-        mqc_ret = multiqc.run(
-            *paths# module=[
-            #     module.lower() for module in mqc_target["mqc_modules"]
-            # ],  # module names here are always lowercase
-        )
-    except SystemExit:
-        raise ValueError(
-            f"MultiQC tried to sys.exit. This was given a multiqc.run using these paths: {paths}"
-        )
+    import os
+    import tempfile
 
-    # extract and set general stats
+    multiqc, report = require_multiqc()
+    if not paths:
+        return {"plots": {}, "general_stats": {}}
+    # MultiQC writes report/data into CWD; use a temp dir to avoid ENAMETOOLONG
+    # from repeatedly suffixing multiqc_data_* in shared pytest tmp dirs.
+    prev_cwd = Path.cwd()
+    try:
+        with tempfile.TemporaryDirectory(prefix="dp_tools_mqc_") as tmp_mqc_dir:
+            os.chdir(tmp_mqc_dir)
+            try:
+                multiqc.run(*[str(p) for p in paths])
+            except SystemExit:
+                raise ValueError(
+                    f"MultiQC tried to sys.exit. This was given a multiqc.run using these paths: {paths}"
+                )
+    finally:
+        os.chdir(prev_cwd)
+
+    # extract and set general stats ({sample: {metric: value}} per module)
     general_stats_data = get_general_stats(report)
     general_stats = dict()
     for module, data in general_stats_data.items():
-        general_stats[module] = pd.DataFrame(
-                        collections.OrderedDict([(k, list(v[0])[1][1]) for k, v in data.items()])
-        ).T  # Transpose for consistency with plots dataframes, a samples are the index
+        # samples as index, matching plot dataframes
+        general_stats[module] = pd.DataFrame(data).T
 
     # extract and set plot data
     # Format plots as a dataframe
     df_mqc = format_plots_as_dataframe(report)
 
     plots: dict[str, dict[str, pd.DataFrame]] = defaultdict(dict)
-    for gb_name, df_gb in df_mqc.T.groupby(level=[0,1]):
-        # clean dataframe
-        # remove row index (redundant with entity ownership)
-        # df_gb.reset_index(inplace=True, drop=True)
+    if df_mqc.empty or not isinstance(df_mqc.columns, pd.MultiIndex):
+        return {"plots": dict(plots), "general_stats": general_stats}
+    for gb_name, df_gb in df_mqc.T.groupby(level=[0, 1]):
+        # groupby yields metrics as rows / samples as columns; checks expect the
+        # inverse (samples as index, metric names as columns).
+        df_gb = df_gb.T
 
         # remove top two levels of multindex (these are redundant with gb_name)
         if isinstance(df_gb.columns, pd.MultiIndex) and df_gb.columns.nlevels > 2:

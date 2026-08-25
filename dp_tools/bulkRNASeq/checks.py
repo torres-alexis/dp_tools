@@ -71,14 +71,12 @@ def convert_nan_to_zero(input: Dict[str, Union[float, int]]) -> Dict:
 ## Functions that use the following syntax to merge values from general stats:
 # "stat1 + stat2" should search and sum the stats
 # TODO: refine dict typehint
-def stat_string_to_value(stat_string: str, mqcData: dict) -> float:
+def stat_string_to_value(stat_string: str, mqcData) -> float:
     """ "stat1 + stat2" should search and sum the stats"""
-    sum = float(0)
-    direct_keys = stat_string.split(" + ")
-    for direct_key in direct_keys:
-        print(direct_key)
-        sum += mqcData[direct_key]
-    return float(sum)
+    total = 0.0
+    for direct_key in stat_string.split(" + "):
+        total += _scalar_from_mqc_stat(mqcData[direct_key])
+    return total
 
 
 ## Dataframe and Series specific helper functions
@@ -97,16 +95,33 @@ def onlyAllowedValues(df: pd.DataFrame, allowed_values: list) -> bool:
     return ((df.isin(allowed_values)) | (df.isnull())).all(axis=None)
 
 
+def _scalar_from_mqc_stat(frame_or_value):
+    """Coerce MultiQC general-stats cell to float (pandas 3 rejects float(Series))."""
+    if hasattr(frame_or_value, "item"):
+        return float(frame_or_value.item())
+    return float(frame_or_value)
+
+
+def _resolve_mqc_module_table(module_tables: dict, mqc_module: str):
+    """Case-insensitive module lookup (MultiQC 1.35 may emit RSEM vs Rsem)."""
+    if mqc_module in module_tables:
+        return module_tables[mqc_module]
+    for key, table in module_tables.items():
+        if str(key).casefold() == mqc_module.casefold():
+            return table
+    raise KeyError(mqc_module)
+
+
 def check_forward_and_reverse_reads_counts_match(
     sample: Sample, reads_key_1: str, reads_key_2: str
 ) -> FlagEntry:
     # data specific preprocess
-    count_fwd_reads = float(
+    count_fwd_reads = _scalar_from_mqc_stat(
         sample.compile_multiqc_data([reads_key_1])["general_stats"]["FastQC"][
             "total_sequences"
         ]
     )
-    count_rev_reads = float(
+    count_rev_reads = _scalar_from_mqc_stat(
         sample.compile_multiqc_data([reads_key_2])["general_stats"]["FastQC"][
             "total_sequences"
         ]
@@ -292,9 +307,23 @@ def check_for_outliers(
     compiled_mqc_data = dataset.compile_multiqc_data(data_asset_keys=data_asset_keys)
 
     if mqc_plot == "general_stats":
-        df = compiled_mqc_data["general_stats"][mqc_module]
+        df = _resolve_mqc_module_table(compiled_mqc_data["general_stats"], mqc_module)
     else:
-        df = compiled_mqc_data["plots"][mqc_module][mqc_plot]
+        plots_for_module = _resolve_mqc_module_table(compiled_mqc_data["plots"], mqc_module)
+        if mqc_plot in plots_for_module:
+            df = plots_for_module[mqc_plot]
+        else:
+            # case-insensitive plot title match
+            df = next(
+                (
+                    plots_for_module[k]
+                    for k in plots_for_module
+                    if str(k).casefold() == mqc_plot.casefold()
+                ),
+                None,
+            )
+            if df is None:
+                raise KeyError(mqc_plot)
 
     def default_to_regular(d):
         if isinstance(d, defaultdict):
@@ -1028,8 +1057,8 @@ def utils_common_constraints_on_dataframe(
         # which is likely used in the check message
         col_constraints = col_constraints.copy()
 
-        # limit to only columns of interest
-        query_df = df[col_set]
+        # limit to only columns of interest (list required; pandas 3 rejects set indexers)
+        query_df = df[list(col_set)]
         for (colname, colseries) in query_df.items():
             # check non null constraint
             if col_constraints.pop("nonNull", False) and nonNull(colseries) == False:
@@ -1407,8 +1436,15 @@ def utils_rsem_counts_table_to_dataframe(
 
 
 def utils_get_asset(asset_name: str) -> Path:
-    [p] = (p for p in files("dp_tools") if p.name == asset_name)
-    return p.locate()
+    # Prefer package-relative path: importlib.metadata.files() is incomplete for
+    # editable installs (RECORD often omits package data), which breaks pytest.
+    asset = Path(__file__).resolve().parent.parent / "assets" / asset_name
+    if asset.is_file():
+        return asset
+    matches = [p for p in (files("dp_tools") or []) if p and p.name == asset_name]
+    if not matches:
+        raise FileNotFoundError(f"Package asset not found: {asset_name}")
+    return Path(matches[0].locate()).resolve()
 
 
 def check_ERCC_subgroup_representation(unnormalizedCountTable: Path, **_) -> FlagEntry:

@@ -22,7 +22,7 @@ def require_multiqc():
     except ImportError as e:
         raise ImportError(
             "MultiQC is not installed. Validation and metrics features require: "
-            "pip install 'multiqc==1.26'"
+            "pip install 'multiqc==1.35'"
         ) from e
     multiqc.config.logger.hasHandlers = lambda: False
     return multiqc, report
@@ -179,16 +179,62 @@ class MQCRunDict(TypedDict):
     sys_exit_code: int
 
 
+def _namespace_from_header_cols(header_cols: dict) -> str | None:
+    for col_meta in header_cols.values():
+        if isinstance(col_meta, dict) and col_meta.get("namespace"):
+            return col_meta["namespace"]
+    return None
+
+
+def _flatten_general_stats_section(section_data) -> dict[str, dict]:
+    """Normalize a MultiQC general_stats section to {sample: {metric: value}}."""
+    flat: dict[str, dict] = {}
+    if not section_data:
+        return flat
+    for sample_group, rows in section_data.items():
+        if isinstance(rows, list):
+            merged: dict = {}
+            sample_name = str(sample_group)
+            for row in rows:
+                sample_name = str(getattr(row, "sample", sample_group))
+                row_data = getattr(row, "data", None)
+                if row_data is None and isinstance(row, dict):
+                    row_data = row
+                if row_data is None:
+                    continue
+                for key, val in dict(row_data).items():
+                    merged[str(key)] = getattr(val, "raw", val)
+            flat[sample_name] = merged
+        elif isinstance(rows, dict):
+            flat[str(sample_group)] = rows
+    return flat
+
+
 def get_general_stats(mqc_run_output: MQCRunDict) -> dict[str, dict]:
-    returnDict = dict()
+    """Extract general stats keyed by module namespace.
+
+    Supports MultiQC 1.26 (list headers/data) and 1.35+ (dict by section).
+    Each value is normalized to {sample: {metric: value}}.
+    """
     report = mqc_run_output
+    headers = report.general_stats_headers
+    data = report.general_stats_data
+    out: dict[str, dict] = {}
+
+    if isinstance(headers, dict):
+        for section_key, header_cols in headers.items():
+            ns = _namespace_from_header_cols(header_cols) or str(section_key)
+            section = data.get(section_key, {}) if isinstance(data, dict) else {}
+            out[ns] = _flatten_general_stats_section(section)
+        return out
+
+    # MultiQC <=1.26: parallel lists of header dicts and per-module sample dicts
     mqc_modules = [
-        list(header_entry.values())[0]["namespace"]
-        for header_entry in report.general_stats_headers
+        list(header_entry.values())[0]["namespace"] for header_entry in headers
     ]
-    for mqc_module, single_module_data in zip(mqc_modules, report.general_stats_data):
-        returnDict[mqc_module] = single_module_data
-    return returnDict
+    for mqc_module, single_module_data in zip(mqc_modules, data):
+        out[mqc_module] = _flatten_general_stats_section(single_module_data)
+    return out
 
 
 def format_plots_as_dataframe(mqc_rep: MQCRunDict | dict) -> pd.DataFrame:
@@ -205,6 +251,51 @@ def format_plots_as_dataframe(mqc_rep: MQCRunDict | dict) -> pd.DataFrame:
 
     # convert to sample wise dataframe and merge
     return pd.DataFrame(final_flat_plot_dict).T
+
+
+def _normalize_plot_entry(plot_data: dict) -> dict:
+    """Normalize MultiQC plot dicts from live 1.35 reports and older JSON dumps."""
+    if not isinstance(plot_data, dict):
+        return plot_data
+
+    # Older multiqc_data.json used "config"; live 1.35 uses "pconfig"
+    if "pconfig" not in plot_data and "config" in plot_data:
+        plot_data = {**plot_data, "pconfig": plot_data["config"]}
+
+    plot_type = plot_data.get("plot_type")
+    plot_type = getattr(plot_type, "value", plot_type)
+    datasets = plot_data.get("datasets")
+    if not datasets:
+        return plot_data
+
+    # Legacy bar_graph: samples at top-level, datasets[0] is list of category dicts
+    if plot_type in ("bar_graph", "bar plot") and isinstance(datasets[0], list):
+        samples = plot_data.get("samples", [])
+        if samples and isinstance(samples[0], list):
+            samples = samples[0]
+        plot_data = {
+            **plot_data,
+            "datasets": [{"samples": samples, "cats": datasets[0]}],
+        }
+
+    # Legacy xy_line: datasets[0] is list of {name, data:[[x,y],...]}
+    elif plot_type in ("xy_line", "x/y line") and isinstance(datasets[0], list):
+        lines = []
+        for line in datasets[0]:
+            if not isinstance(line, dict):
+                continue
+            if "pairs" in line:
+                lines.append(line)
+            else:
+                lines.append(
+                    {
+                        **line,
+                        "pairs": line.get("data", []),
+                    }
+                )
+        plot_data = {**plot_data, "datasets": [{"lines": lines}]}
+
+    return plot_data
 
 
 def parse_bar_graph_to_flat_dict(plot_data):
@@ -245,16 +336,28 @@ def __clean_mapped_data(mapped_data, messy_to_clean_map):
 def __parse_xy_line_graph_to_flat_dict(plot_data):
     # return messy sample:[{key (ylab):value}]
     all_flat_dict = dict()
-    if plot_data["pconfig"].get("categories"):
+    categories = plot_data["pconfig"].get("categories")
+    if categories:
         for line in plot_data["datasets"][0]['lines']:
             messy_s = line["name"]
-            sample_flat_dict = [{(
-            plot_data["pconfig"]["title"],
-            plot_data["pconfig"]["title"],
-            f"{category} {plot_data['pconfig']['xlab']} ({plot_data['pconfig']['ylab']})"
-            ): val
-            }
-            for category, val in line['pairs']
+            values = line.get("pairs") or line.get("data") or []
+            # Legacy JSON: flat list of y-values aligned to pconfig.categories
+            # Live MultiQC: list of [category, value] pairs
+            if values and not isinstance(values[0], (list, tuple)):
+                pairs = list(zip(categories, values))
+            else:
+                pairs = values
+            xlab = plot_data["pconfig"].get("xlab") or ""
+            ylab = plot_data["pconfig"].get("ylab") or ""
+            sample_flat_dict = [
+                {
+                    (
+                        plot_data["pconfig"]["title"],
+                        plot_data["pconfig"]["title"],
+                        f"{category} {xlab} ({ylab})".strip(),
+                    ): val
+                }
+                for category, val in pairs
             ]
             all_flat_dict[messy_s] = sample_flat_dict
     else:
@@ -288,19 +391,24 @@ def __parse_xy_line_graph_to_flat_dict(plot_data):
     return all_flat_dict
 
 
-def format_plot_data(mqc_rep: dict):
-   
-    if mqc_rep:
+def format_plot_data(mqc_rep):
+    # Live MultiQC report objects expose .plot_data; metrics JSON already is plot_data.
+    if mqc_rep is None:
+        return {}
+    if hasattr(mqc_rep, "plot_data"):
         mqc_rep = mqc_rep.plot_data
     log.info(f"Attempting to extract data from {len(mqc_rep)} plots")
     all_clean_data = dict()
     for plot_key, plot_data in mqc_rep.items():
+        plot_data = _normalize_plot_entry(plot_data)
         log.info(
             f"Attempting to extract data from plot with Title: {plot_data['pconfig']['title']}"
         )
-        log.debug(f"Plot type: {plot_data['plot_type']}")
-        # check plot type
-        if plot_data["plot_type"] == "bar_graph":
+        plot_type = plot_data["plot_type"]
+        plot_type = getattr(plot_type, "value", plot_type)
+        log.debug(f"Plot type: {plot_type}")
+        # MultiQC 1.26: bar_graph / xy_line; 1.35+: bar plot / x/y line
+        if plot_type in ("bar_graph", "bar plot"):
             mapped_data = parse_bar_graph_to_flat_dict(
                 plot_data
             )  # {messy_s: [{'sub_source::plot_name::sub_part--(units)':value}]
@@ -313,7 +421,7 @@ def format_plot_data(mqc_rep: dict):
                 }
                 for s in plot_data['datasets'][0]['samples']
             }
-        elif plot_data["plot_type"] == "xy_line":
+        elif plot_type in ("xy_line", "x/y line"):
             mapped_data = __parse_xy_line_graph_to_flat_dict(
                 plot_data
             )  # {messy_s: [{'sub_source::plot_name::sub_part--(units)':value}]
@@ -326,14 +434,14 @@ def format_plot_data(mqc_rep: dict):
                 }
                 for s in [s["name"] for s in plot_data["datasets"][0]['lines']]
             }
-        elif plot_data["plot_type"] in ["heatmap", "violin"]:
+        elif plot_type in ("heatmap", "violin", "violin plot"):
             log.warning(
-                f"Not implemented for dataframe extraction: {plot_data['plot_type']}, skipping this plot with Title: {plot_data['pconfig']['title']}"
+                f"Not implemented for dataframe extraction: {plot_type}, skipping this plot with Title: {plot_data['pconfig']['title']}"
             )
             continue
         else:
             raise ValueError(
-                f"Unexpected plot type encountered: {plot_data['plot_type']} for plot: {plot_key}"
+                f"Unexpected plot type encountered: {plot_type} for plot: {plot_key}"
             )
 
         clean_data = __clean_mapped_data(mapped_data, messy_to_clean_map)

@@ -1,11 +1,9 @@
 """ Functions that parse configuration files """
 from typing import Union
 from pathlib import Path
-import os
-import yaml
-from loguru import logger as log
-from importlib.metadata import files
 import functools
+
+from dp_tools.core.configuration import load_config as _load_config
 
 ConfigVersion = tuple[str, str]
 """ Denotes a specific prepackaged configuration file with (<assay>,<version>), e.g. ("bulkRNAseq","Latest") """
@@ -24,21 +22,7 @@ def load_config(config: ConfigSelection) -> dict:
     :return: A dictionary of the full configuration
     :rtype: dict
     """
-    match config:
-        case tuple():
-            conf_type, conf_version = config
-            query_config_fn = f"{conf_type}_v{conf_version}.yaml"
-            [resolved_config_path] = (p for p in files('dp_tools') if p.name == query_config_fn)
-            log.info(f"Loading config (relative to package): {resolved_config_path}")
-            with open(resolved_config_path.locate(), "r") as f:
-                conf_full = yaml.safe_load(f)
-        case Path():
-            log.info(f"Loading config (direct path): {config}")
-            conf_full = yaml.safe_load(config.open())
-
-    log.debug(f"Final config loaded: {conf_full}")
-
-    return conf_full
+    return _load_config(config)
 
 def get_data_asset_keys(config: ConfigSelection) -> list[str]:
     """

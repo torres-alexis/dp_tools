@@ -21,9 +21,10 @@ def test_bulkRNASeq_mqc_api(glds194_dataSystem):
     )
     data = ds.compile_multiqc_data()
     plots = data["plots"]["FastQC"]
+    # MultiQC 1.35 renamed "Overrepresented sequences" → "... sample summary"
     assert set(plots) == set(
         [
-            "Overrepresented sequences",
+            "Overrepresented sequences sample summary",
             "Per Sequence GC Content",
             "Per Base N Content",
             "Adapter Content:Subplot::illumina_universal_adapter",

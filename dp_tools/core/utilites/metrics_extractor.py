@@ -183,7 +183,11 @@ class MetricsExtractor:
             # Create MultiIndex
             df_updated_metrics.columns = pd.MultiIndex.from_tuples(columns_as_tuples)
 
-            self.metrics = self.metrics.append(df_updated_metrics)
+            self.metrics = (
+                df_updated_metrics
+                if self.metrics.empty
+                else pd.concat([self.metrics, df_updated_metrics])
+            )
 
         def _extract_section(
             self, section_name: str, files: list[Path], modules: list[str]
@@ -255,7 +259,11 @@ class MetricsExtractor:
                 [(section_name, *col) for col in df_updated_metrics.columns]
             )
 
-            self.metrics = self.metrics.append(df_updated_metrics)
+            self.metrics = (
+                df_updated_metrics
+                if self.metrics.empty
+                else pd.concat([self.metrics, df_updated_metrics])
+            )
 
         for target in self.targets:
             if target.jsonTarget == False:
@@ -278,11 +286,20 @@ class MetricsExtractor:
         samplewise_metrics_cleaned.index = samplewise_metrics_cleaned.index.str.replace(
             "-", "_"
         )
+        # pandas 3 rejects merges across different column MultiIndex depths
+        nlevels = metrics_reset.columns.nlevels
+        if nlevels > 1:
+            samplewise_metrics_cleaned.columns = pd.MultiIndex.from_tuples(
+                [
+                    (col,) + ("",) * (nlevels - 1)
+                    for col in samplewise_metrics_cleaned.columns
+                ]
+            )
 
         merged = metrics_reset.merge(
             samplewise_metrics_cleaned,
             how="left",
-            left_on="sample name",
+            left_index=True,
             right_index=True,
         )
         # Rename based on length of coerced tuples

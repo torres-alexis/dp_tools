@@ -9,7 +9,7 @@ def test_update_curation_tables_paired(glds194_dataSystem, tmpdir):
         glds194_dataSystem.dataset, config=("bulkRNASeq", "Latest")
     )
 
-    assert df.shape == (13, 66)
+    assert df.shape == (13, 64)
 
 
 def test_update_curation_tables_single(glds48_dataSystem, tmpdir):

@@ -1,6 +1,6 @@
 # TOP LEVEL
 NAME: "bulkRNASeq"
-VERSION: "3"
+VERSION: "4"
 
 # anchors for reuse
 _anchors:

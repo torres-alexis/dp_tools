@@ -3,6 +3,7 @@ Depends on standard data asset metadata as loaded from packaged config files.
 """
 from collections import defaultdict
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -228,13 +229,12 @@ def generate_new_column_dicts(
     column_order: dict = dict()
 
     for asset in dataset.get_assets():
-        if not asset.config["resource categories"]["publish_to_repo"]:
+        cats = _convert_to_resource_category(asset.config["resource categories"])
+        if not cats["publish_to_repo"]:
             continue
 
         # format header
-        category_string = get_repolike_category_string(
-            asset.config["resource categories"]
-        )
+        category_string = get_repolike_category_string(cats)
         header = (
             _PARAMETER_VALUE_COL_PREFIX + category_string + _PARAMETER_VALUE_COL_SUFFIX
         )
@@ -271,7 +271,7 @@ def generate_new_column_dicts(
 
         # TODO: this likely will be better placed elsewhere but for now this is fine
         # Track column order here as a dict
-        column_order[header] = asset.config["resource categories"]["table_order"]
+        column_order[header] = cats["table_order"]
 
         # associate file names to each sample
         for sample in associated_samples:
@@ -566,7 +566,8 @@ def generate_md5sum_table(
     # table columns: resource_category, filename, md5sum
     data: Union[list[Md5sum_row_with_tags], list[Md5sum_row]] = list()
     for asset in dataset.get_assets():
-        if not asset.config["resource categories"]["publish_to_repo"]:
+        cats = _convert_to_resource_category(asset.config["resource categories"])
+        if not cats["publish_to_repo"]:
             continue
 
         # catch rare cases where a data asset is 'psuedo loaded'
@@ -576,9 +577,7 @@ def generate_md5sum_table(
         if asset.putative:
             data.append(
                 {
-                    "resource_category": get_repolike_category_string(
-                        asset.config["resource categories"]
-                    ),
+                    "resource_category": get_repolike_category_string(cats),
                     "filename": asset.path.name,
                     "md5sum": "USER MUST ADD MANUALLY!",
                 }
@@ -590,9 +589,7 @@ def generate_md5sum_table(
         if asset.path.is_file():
             data.append(
                 {
-                    "resource_category": get_repolike_category_string(
-                        asset.config["resource categories"]
-                    ),
+                    "resource_category": get_repolike_category_string(cats),
                     "filename": asset.path.name,
                     "md5sum": compute_md5sum(asset.path),
                 }
@@ -603,9 +600,7 @@ def generate_md5sum_table(
             for sub_asset in asset.path.iterdir():
                 data.append(
                     {
-                        "resource_category": get_repolike_category_string(
-                            asset.config["resource categories"]
-                        ),
+                        "resource_category": get_repolike_category_string(cats),
                         "filename": sub_asset.name,
                         "md5sum": compute_md5sum(sub_asset),
                     }
@@ -617,7 +612,7 @@ def generate_md5sum_table(
     publishable_asset_keys_in_config: set[str] = {
         key
         for key, value in loaded_config["data assets"].items()
-        if value["resource categories"]["publish_to_repo"]
+        if _convert_to_resource_category(value["resource categories"])["publish_to_repo"]
     }
 
     missing_publishables_by_key = (

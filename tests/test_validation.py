@@ -51,7 +51,7 @@ from loguru import logger as log
             ],
             ["Trimmed Reads By Sample", "Trim Reads"],
             (176, 7),
-            (9, 1),
+            (7, 1),  # MultiQC 1.35: fewer FastQC plot outliers (violin plots skipped)
             4822.284090909091,
             0,
             id="Trimmed Reads Checks Only",
@@ -105,7 +105,7 @@ from loguru import logger as log
             ["is paired end full", "ERCC DGE Output"],
             None,  # This evaluates to meaning running all components
             (714, 7),
-            (34, 5),
+            (32, 5),  # MultiQC 1.35: trimmed FastQC contributes 2 fewer outliers
             20359.484593837537,
             2,  # RSEM and DGE parity won't match due to dummy counts in DGE output test data / RSeQC strandedness is ambiguous
             id="Run all checks",

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README: `download-files` documented as glob patterns (not regex)
 - Pandera import: use `pandera.pandas` to silence deprecation warning on CLI startup
 - Dockerfile build failure on focal/deadsnakes; image now uses `python:3.11-slim-bookworm`
+- Set bulkRNASeq v4 and Latest VERSION to 4
+- Validation / metrics extraction against MultiQC 1.35 and pandas 3 (scalar stats, RSEM module name, set indexers, package data lookup)
 
 ## [1.3.11]
 

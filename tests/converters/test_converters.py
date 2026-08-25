@@ -8,6 +8,16 @@ from pathlib import Path
 
 from dp_tools.scripts.convert import isa_to_runsheet
 
+
+@pytest.fixture(autouse=True)
+def _mock_osdr_file_urls(monkeypatch):
+    """Avoid live OSDR filelisting (renames / 500s break hash fixtures)."""
+    monkeypatch.setattr(
+        "dp_tools.scripts.convert.retrieve_file_url",
+        lambda accession, filename: f"https://example.invalid/{accession}/{filename}",
+    )
+
+
 # Updated to microarray development version api
 def test_paired_isa_to_runsheet(glds194_test_dir, tmpdir):
     """This tests validation as it would be run on dataset after demultiplexing"""
@@ -18,7 +28,7 @@ def test_paired_isa_to_runsheet(glds194_test_dir, tmpdir):
     assert df_runsheet.shape == (13, 8)
     assert (
         hashlib.sha1(pd.util.hash_pandas_object(df_runsheet).values).hexdigest()
-        == "4b4368ebf60c9e02a11b792030102f8d67e43b67"
+        == "6b9186d43041aabf94e4a9d448a47b87a2b4f416"
     ), "Hash did not match, the means the contents changed. Manually validation and reset of test hash is in order"
 
 
@@ -31,7 +41,7 @@ def test_single_isa_to_runsheet(glds48_test_dir, tmpdir):
     assert df_runsheet.shape == (14, 7)
     assert (
         hashlib.sha1(pd.util.hash_pandas_object(df_runsheet).values).hexdigest()
-        == "8322bdba7204e3f685b4af8affec5da9fc5bd526"
+        == "5d87fd96304f05a9047cb5e0e25e3cb76e5b24f0"
     ), "Hash did not match, the means the contents changed. Manually validation and reset of test hash is in order"
 
 def test_non_ready_dataset_to_runsheet(glds313_test_dir, tmpdir):
@@ -54,7 +64,7 @@ def test_methylSeq_glds397_isa_to_runsheet(glds397_isazip_path):
     assert df_runsheet.shape == (16, 6)  # 1 factor value
     assert (
         hashlib.sha1(pd.util.hash_pandas_object(df_runsheet).values).hexdigest()
-        == "e895e381311b8cbad07f37074125b1a9970c6dd0"
+        == "5a50791f1b2702b2db4949040268a68156cad028"
     ), "Hash did not match, the means the contents changed. Manually validation and reset of test hash is in order"
 
 # def test_microarray_glds123_isa_to_runsheet(glds123_isazip_path):

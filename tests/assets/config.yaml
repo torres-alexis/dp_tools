@@ -5,6 +5,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "00-RawData"
+          - "FastQC_Reports"
           - "raw_multiqc_report"
           - "raw_multiqc_data"
           - "multiqc_data.json"
@@ -21,6 +23,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "01-TG_Preproc"
+          - "FastQC_Reports"
           - "trimmed_multiqc_report"
           - "trimmed_multiqc_data"
           - "multiqc_data.json"
@@ -37,6 +41,7 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "02-STAR_Alignment"
           - "align_multiqc_report"
           - "align_multiqc_data"
           - "multiqc_data.json"
@@ -52,6 +57,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "RSeQC_Analyses"
+          - "02_geneBody_coverage"
           - "geneBody_cov_multiqc_report"
           - "geneBody_cov_multiqc_data"
           - "multiqc_data.json"        
@@ -68,6 +75,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "RSeQC_Analyses"
+          - "03_infer_experiment"
           - "infer_exp_multiqc_report"
           - "infer_exp_multiqc_data"
           - "multiqc_data.json"
@@ -84,6 +93,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "RSeQC_Analyses"
+          - "04_inner_distance"
           - "inner_dist_multiqc_report"
           - "inner_dist_multiqc_data"
           - "multiqc_data.json"   
@@ -100,6 +111,8 @@ Extraction Settings:
       enabled: True
       multiQC:
         from json:
+          - "RSeQC_Analyses"
+          - "05_read_distribution"
           - "read_dist_multiqc_report"
           - "read_dist_multiqc_data"
           - "multiqc_data.json"   
@@ -117,6 +130,7 @@ Extraction Settings:
       enabled: True 
       multiQC:
         from json:
+          - "03-RSEM_Counts"
           - "RSEM_count_multiqc_report"
           - "RSEM_count_multiqc_data"
           - "multiqc_data.json"   
