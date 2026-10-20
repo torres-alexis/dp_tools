@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `dpt osd browse`: TTY curses file picker with checkbox selection; confirm screen supports preserve-dirs, strip-prefix, copy download command, and download
+- `dpt osd download-files`: `--measurement` / `--tech` assay filters; `--ext` / `--exclude-ext` / `--search` / `--exclude-search`; `--list` TSV; `--genelab-only`; size check vs OSDR listing
 
 ### Changed
 

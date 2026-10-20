@@ -3,6 +3,7 @@ Python functions the retrieve data from GeneLab. Uses the GeneLab public APIs (h
 """
 
 import functools
+import re
 from pathlib import Path
 from urllib.request import urlopen
 import requests
@@ -17,6 +18,12 @@ GENELAB_DATASET_FILES = "https://osdr.nasa.gov/osdr/data/osd/files/{accession_nu
 
 FILE_RETRIEVAL_URL_PREFIX = "https://osdr.nasa.gov{suffix}"
 """Used to retrieve files using remote url suffixes listed in the 'Data Query' API."""
+
+BIODATA_METADATA_URL = (
+    "https://visualization.osdr.nasa.gov/biodata/api/v2/query/metadata/"
+)
+_ASSAY_MEASUREMENT_COL = "investigation.study assays.study assay measurement type"
+_ASSAY_TECHNOLOGY_COL = "investigation.study assays.study assay technology type"
 
 
 def _load_osd_files_table(osd_id: str) -> pd.DataFrame:
@@ -92,16 +99,168 @@ def find_matching_filenames(accession: str, filename_pattern: str) -> list[str]:
     )
 
 
+def _assay_match(value: object, query: str) -> bool:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return False
+    pat = re.escape(query).replace(r"\(", ".*").replace(r"\)", ".*")
+    return re.search(pat, str(value), flags=re.IGNORECASE) is not None
+
+
+def _osd_accession(accession: str, df: pd.DataFrame | None = None) -> str:
+    if accession.startswith("OSD-"):
+        return accession
+    if df is None:
+        df = get_table_of_files(accession)
+    if "remote_url" in df.columns:
+        for url in df["remote_url"].dropna():
+            match = re.search(r"OSD-\d+", str(url))
+            if match:
+                return match.group(0)
+    raise ValueError(f"Could not resolve OSD accession from {accession}")
+
+
+@functools.cache
+def _assay_file_records(osd_id: str) -> pd.DataFrame:
+    """Biodata records tying filenames to ISA measurement/technology types."""
+    query = (
+        f"id.accession={osd_id}"
+        "&file.file_name"
+        "&investigation.study%20assays.study%20assay%20measurement%20type"
+        "&investigation.study%20assays.study%20assay%20technology%20type"
+        "&format=json.records"
+    )
+    url = f"{BIODATA_METADATA_URL}?{query}"
+    log.info(f"Biodata assay metadata: {url}")
+    with urlopen(url) as response:
+        data = json.loads(response.read())
+    if not isinstance(data, list):
+        raise ValueError(f"Unexpected biodata response for {osd_id}: {type(data)}")
+    return pd.DataFrame(data)
+
+
+def filenames_for_assay_types(
+    accession: str,
+    measurements: list[str] | None = None,
+    technologies: list[str] | None = None,
+    *,
+    assay_records: pd.DataFrame | None = None,
+) -> list[str]:
+    if not measurements and not technologies:
+        return []
+    records = (
+        assay_records
+        if assay_records is not None
+        else _assay_file_records(_osd_accession(accession))
+    )
+    if records.empty:
+        return []
+    df = records
+    if measurements:
+        if _ASSAY_MEASUREMENT_COL not in df.columns:
+            return []
+        df = df[
+            df[_ASSAY_MEASUREMENT_COL].map(
+                lambda value: any(_assay_match(value, query) for query in measurements)
+            )
+        ]
+    if technologies:
+        if _ASSAY_TECHNOLOGY_COL not in df.columns:
+            return []
+        df = df[
+            df[_ASSAY_TECHNOLOGY_COL].map(
+                lambda value: any(_assay_match(value, query) for query in technologies)
+            )
+        ]
+    if "file.file_name" not in df.columns:
+        return []
+    return list(dict.fromkeys(df["file.file_name"].dropna().astype(str)))
+
+
+def is_genelab_processed_category(category: object) -> bool:
+    return "genelab processed" in str(category or "").lower()
+
+
+def expected_file_size(df: pd.DataFrame, filename: str) -> int:
+    """OSDR listing file_size in bytes; 0 if missing."""
+    if df is None or "file_name" not in df.columns or "file_size" not in df.columns:
+        return 0
+    hits = df.loc[df["file_name"] == filename, "file_size"]
+    if hits.empty:
+        return 0
+    value = hits.iloc[0]
+    if value is None or pd.isna(value):
+        return 0
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def verify_downloaded_sizes(
+    output_dir: Path,
+    items: list[tuple[str, str]],
+    df: pd.DataFrame,
+) -> list[str]:
+    """Return mismatch lines: relative_path expected vs actual bytes."""
+    mismatches: list[str] = []
+    for relative_path, filename in items:
+        expected = expected_file_size(df, filename)
+        if expected <= 0:
+            continue
+        dest = output_dir / relative_path
+        actual = dest.stat().st_size if dest.exists() else -1
+        if actual != expected:
+            mismatches.append(f"{relative_path}: expected {expected} B, got {actual} B")
+    return mismatches
+
+
+def apply_name_filters(
+    filenames: list[str],
+    *,
+    extensions: list[str] | None = None,
+    exclude_extensions: list[str] | None = None,
+    search: list[str] | None = None,
+    exclude_search: list[str] | None = None,
+) -> list[str]:
+    def _has_ext(name: str, ext: str) -> bool:
+        return name.lower().endswith("." + ext.lower().lstrip("."))
+
+    kept: list[str] = []
+    for name in filenames:
+        if extensions and not any(_has_ext(name, ext) for ext in extensions):
+            continue
+        if exclude_extensions and any(
+            _has_ext(name, ext) for ext in exclude_extensions
+        ):
+            continue
+        lower = name.lower()
+        if search and not any(term.lower() in lower for term in search):
+            continue
+        if exclude_search and any(term.lower() in lower for term in exclude_search):
+            continue
+        kept.append(name)
+    return kept
+
+
 def filter_filenames(
     accession: str,
     filename_pattern: str | None = None,
     categories: list[str] | None = None,
     subcategories: list[str] | None = None,
+    measurements: list[str] | None = None,
+    technologies: list[str] | None = None,
+    extensions: list[str] | None = None,
+    exclude_extensions: list[str] | None = None,
+    search: list[str] | None = None,
+    exclude_search: list[str] | None = None,
+    genelab_only: bool = False,
 ) -> list[str]:
-    """Return filenames filtered by OSDR category metadata and/or glob pattern."""
     import fnmatch
 
     df = get_table_of_files(accession)
+
+    if genelab_only:
+        df = df[df["category"].map(is_genelab_processed_category)]
 
     if categories:
         df = df[df["category"].isin(categories)]
@@ -113,7 +272,23 @@ def filter_filenames(
         regex_pattern = fnmatch.translate(filename_pattern)
         df = df[df["file_name"].str.contains(regex_pattern, regex=True)]
 
-    return df["file_name"].tolist()
+    if measurements or technologies:
+        allowed = set(
+            filenames_for_assay_types(
+                accession,
+                measurements=measurements,
+                technologies=technologies,
+            )
+        )
+        df = df[df["file_name"].isin(allowed)]
+
+    return apply_name_filters(
+        df["file_name"].tolist(),
+        extensions=extensions,
+        exclude_extensions=exclude_extensions,
+        search=search,
+        exclude_search=exclude_search,
+    )
 
 
 def _safe_path_segment(segment: str) -> str:

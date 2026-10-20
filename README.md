@@ -161,18 +161,29 @@ dpt osd download-files <osd-id> [FILE-PATTERN] [OPTIONS]
 | Glob pattern | Positional `FILE-PATTERN` (`*`, `?`) |
 | ISA assay table | `-a` / `--isa-assay` + optional `--data-file-column` (default: `Raw Data File`) |
 | Repository category | `-c` / `--category` + optional `--subcategory` (see `--list-categories`) |
+| Assay type | `--measurement` and/or `--tech` (ISA types via OSDR biodata; substring, case-insensitive) |
 
-`-a` cannot be combined with `FILE-PATTERN` or `-c`. With `-c`, an optional `FILE-PATTERN` further narrows by filename.
+`-a` cannot be combined with `FILE-PATTERN`, `-c`, `--measurement`, or `--tech`. With `-c` or assay-type flags, an optional `FILE-PATTERN` further narrows by filename.
 
 **Category filtering:** `-c` and `--subcategory` are repeatable. Multiple values are OR'd within each level (e.g. two `--subcategory` flags = files in subcategory A **or** B). Omit `--subcategory` to include all subcategories under the selected `-c` value(s).
 
-**Other options:** `--dry-run`, `-y` (no prompt), `-o` output dir, `-j` parallel jobs. Uses GNU `parallel` + `curl` when available; otherwise threaded Python `requests`.
+**Name filters** (repeatable; AND with the selection mode): `--ext` / `--exclude-ext`, `--search` / `--exclude-search`.
+
+**Shortcuts:** `--list` prints a TSV (no download; whole study if no other selector). `--genelab-only` keeps categories containing `GeneLab Processed`.
+
+**Other options:** `--dry-run`, `-y` (no prompt), `-o` output dir, `-j` parallel jobs. Uses GNU `parallel` + `curl` when available; otherwise threaded Python `requests`. After download, file sizes are checked against the OSDR listing.
 
 **Examples:**
 
 List the OSDR file hierarchy:
 ```bash
 dpt osd download-files OSD-240 --list-categories
+```
+
+List files as TSV (no download):
+```bash
+dpt osd download-files OSD-397 --list
+dpt osd download-files OSD-397 --genelab-only --list
 ```
 
 By category:
@@ -200,6 +211,12 @@ dpt osd download-files OSD-240 -a a_OSD-240_transcription-profiling_rna-sequenci
 
 # Different column name, if needed
 dpt osd download-files OSD-240 -a a_OSD-240_....txt --data-file-column "Derived Data File"
+```
+
+By assay type (multi-assay studies):
+```bash
+dpt osd download-files OSD-397 --measurement "transcription profiling" --tech "RNA-Seq" --dry-run
+dpt osd download-files OSD-397 --tech "RNA-Seq" --exclude-ext tar.gz --exclude-search raw --y
 ```
 
 By glob pattern:

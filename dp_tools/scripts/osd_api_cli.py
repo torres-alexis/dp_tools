@@ -1,3 +1,4 @@
+import csv
 import enum
 from pathlib import Path
 import sys
@@ -37,11 +38,11 @@ def _download_with_requests(relative_path: str, url: str, output_dir: Path) -> s
 
 
 def _download_with_parallel(
-    downloads: list[tuple[str, str]], output_dir: Path, jobs: int
+    downloads: list[tuple[str, str, str]], output_dir: Path, jobs: int
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     commands = []
-    for relative_path, url in downloads:
+    for relative_path, url, _filename in downloads:
         dest = output_dir / relative_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         commands.append(
@@ -68,7 +69,7 @@ def _download_with_parallel(
 
 
 def _download_with_threads(
-    downloads: list[tuple[str, str]], output_dir: Path, jobs: int
+    downloads: list[tuple[str, str, str]], output_dir: Path, jobs: int
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     total = len(downloads)
@@ -76,7 +77,7 @@ def _download_with_threads(
     with ThreadPoolExecutor(max_workers=jobs) as executor:
         future_to_name = {
             executor.submit(_download_with_requests, relative_path, url, output_dir): relative_path
-            for relative_path, url in downloads
+            for relative_path, url, _filename in downloads
         }
         for future in as_completed(future_to_name):
             filename = future_to_name[future]
@@ -90,20 +91,50 @@ def _download_with_threads(
     logger.success(f"Finished {total} file(s) in {output_dir.resolve()}")
 
 
+def _write_list_tsv(osd_id: str, downloads: list[tuple[str, str, str]]) -> None:
+    from dp_tools.glds_api.browser.preview import format_file_size
+
+    df = commons.get_table_of_files(osd_id)
+    by_name = df.set_index("file_name", drop=False)
+    writer = csv.writer(sys.stdout, delimiter="\t", lineterminator="\n")
+    writer.writerow(
+        ["Filename", "Download_URL", "File_Size", "Category", "GeneLab_Processed"]
+    )
+    for relative_path, url, filename in downloads:
+        row = by_name.loc[filename] if filename in by_name.index else None
+        if row is None or isinstance(row, pd.DataFrame):
+            category = ""
+            genelab = "Unknown"
+            size = ""
+        else:
+            category = str(row.get("category", "") or "")
+            genelab = (
+                "Yes" if commons.is_genelab_processed_category(category) else "No"
+            )
+            size = format_file_size(commons.expected_file_size(df, filename))
+        writer.writerow([relative_path, url, size, category, genelab])
+
+
 def _run_downloads(
     osd_id: str,
-    downloads: list[tuple[str, str]],
+    downloads: list[tuple[str, str, str]],
     dry_run: bool,
     non_interactive: bool,
     output_dir: str,
     jobs: int,
+    list_tsv: bool = False,
 ) -> None:
     if not downloads:
         raise click.ClickException("No files matched the selection.")
 
+    if list_tsv:
+        logger.info("Writing TSV: Filename Download_URL File_Size Category GeneLab_Processed")
+        _write_list_tsv(osd_id, downloads)
+        return
+
     if dry_run:
         logger.info("Output pairs of 'url' 'relative_output_path'")
-        for relative_path, url in downloads:
+        for relative_path, url, _filename in downloads:
             click.echo(f"{url} {relative_path}")
         return
 
@@ -123,6 +154,20 @@ def _run_downloads(
         logger.info(f"Downloading {len(downloads)} file(s) with {jobs} worker(s)")
         _download_with_threads(downloads, output_path, jobs)
 
+    df = commons.get_table_of_files(osd_id)
+    mismatches = commons.verify_downloaded_sizes(
+        output_path,
+        [(relative_path, filename) for relative_path, _url, filename in downloads],
+        df,
+    )
+    if mismatches:
+        for line in mismatches:
+            logger.error(line)
+        raise click.ClickException(
+            f"{len(mismatches)} file(s) failed size check vs OSDR listing."
+        )
+    logger.info("Size check passed (OSDR listing file_size)")
+
 
 def _build_downloads(
     osd_id: str,
@@ -132,7 +177,7 @@ def _build_downloads(
     preserve_dirs: bool = False,
     strip_prefix: str | None = None,
     df: pd.DataFrame | None = None,
-) -> list[tuple[str, str]]:
+) -> list[tuple[str, str, str]]:
     total = len(file_ids) if file_ids is not None else len(filenames or [])
     if total == 0:
         return []
@@ -214,10 +259,14 @@ def _build_downloads(
 
     if total > 1:
         logger.info(f"Resolving URLs for {total} file(s)...")
-    downloads: list[tuple[str, str]] = []
+    downloads: list[tuple[str, str, str]] = []
     for i, (relative_path, filename) in enumerate(plan, start=1):
         downloads.append(
-            (relative_path, commons.retrieve_file_url(accession=osd_id, filename=filename))
+            (
+                relative_path,
+                commons.retrieve_file_url(accession=osd_id, filename=filename),
+                filename,
+            )
         )
         if total > 10 and i % max(1, total // 10) == 0:
             logger.info(f"Resolved {i}/{total} URLs...")
@@ -230,6 +279,17 @@ def _build_downloads(
 @click.argument("osd-id")
 @click.argument("file-pattern", required=False)
 @click.option("--dry-run", default=False, is_flag=True, help="Output urls and filenames only.")
+@click.option(
+    "--list",
+    "list_tsv",
+    is_flag=True,
+    help="TSV of matching files (no download). No other selector = whole study.",
+)
+@click.option(
+    "--genelab-only",
+    is_flag=True,
+    help="Keep files whose category contains 'GeneLab Processed'.",
+)
 @click.option("-y", "--y", "non_interactive", default=False, is_flag=True, help="Download files without a prompt")
 @click.option("-o", "--output-dir", default=".", show_default=True, type=click.Path(), help="Directory for downloaded files.")
 @click.option("-j", "--jobs", default=10, show_default=True, type=int, help="Number of parallel downloads.")
@@ -238,6 +298,24 @@ def _build_downloads(
 @click.option("-c", "--category", multiple=True, help="OSDR repository category (repeatable). Use --list-categories to see options.")
 @click.option("--subcategory", multiple=True, help="OSDR repository subcategory (repeatable; narrows --category selection).")
 @click.option("--file", "exact_files", multiple=True, help="Exact filename(s) to download (repeatable).")
+@click.option(
+    "--measurement",
+    multiple=True,
+    help="ISA measurement type (repeatable substring, e.g. transcription profiling).",
+)
+@click.option(
+    "--tech",
+    multiple=True,
+    help="ISA technology type (repeatable substring, e.g. RNA-Seq).",
+)
+@click.option("--ext", multiple=True, help="Keep this extension (repeatable, e.g. csv).")
+@click.option("--exclude-ext", multiple=True, help="Drop this extension (repeatable, e.g. tar.gz).")
+@click.option("--search", multiple=True, help="Keep filenames containing this string (repeatable).")
+@click.option(
+    "--exclude-search",
+    multiple=True,
+    help="Drop filenames containing this string (repeatable).",
+)
 @click.option(
     "--preserve-dirs",
     is_flag=True,
@@ -253,6 +331,8 @@ def download_files(
     osd_id,
     file_pattern,
     dry_run,
+    list_tsv,
+    genelab_only,
     non_interactive,
     output_dir,
     jobs,
@@ -261,6 +341,12 @@ def download_files(
     category,
     subcategory,
     exact_files,
+    measurement,
+    tech,
+    ext,
+    exclude_ext,
+    search,
+    exclude_search,
     preserve_dirs,
     strip_prefix,
     list_categories,
@@ -269,21 +355,49 @@ def download_files(
         click.echo(commons.format_file_hierarchy(osd_id))
         return
 
-    if exact_files:
-        if isa_assay or category or subcategory or file_pattern:
+    def _opt(values):
+        return list(values) if values else None
+
+    measurements = _opt(measurement)
+    technologies = _opt(tech)
+    extensions = _opt(ext)
+    exclude_extensions = _opt(exclude_ext)
+    searches = _opt(search)
+    exclude_searches = _opt(exclude_search)
+
+    def _overlap(include, exclude, include_flag, exclude_flag):
+        if not include or not exclude:
+            return
+        clash = {v.lower() for v in include} & {v.lower() for v in exclude}
+        if clash:
             raise click.UsageError(
-                "--file cannot be combined with FILE-PATTERN, --isa-assay, or --category."
+                f"{include_flag} and {exclude_flag} cannot share values: {sorted(clash)}"
+            )
+
+    _overlap(extensions, exclude_extensions, "--ext", "--exclude-ext")
+    _overlap(searches, exclude_searches, "--search", "--exclude-search")
+
+    name_filters = bool(extensions or exclude_extensions or searches or exclude_searches)
+    assay_filters = bool(measurements or technologies)
+
+    if exact_files:
+        if isa_assay or category or subcategory or file_pattern or assay_filters or genelab_only:
+            raise click.UsageError(
+                "--file cannot be combined with FILE-PATTERN, --isa-assay, "
+                "--category, --measurement, --tech, or --genelab-only."
             )
         filenames = list(exact_files)
         logger.info(f"Downloading {len(filenames)} explicitly listed file(s)")
     elif isa_assay:
-        if category or subcategory or file_pattern:
+        if category or subcategory or file_pattern or assay_filters or genelab_only:
             raise click.UsageError(
-                "--isa-assay cannot be combined with FILE-PATTERN or --category."
+                "--isa-assay cannot be combined with FILE-PATTERN, --category, "
+                "--measurement, --tech, or --genelab-only."
             )
-    elif not category and not file_pattern:
+    elif not category and not file_pattern and not assay_filters and not genelab_only and not list_tsv:
         raise click.UsageError(
-            "Specify FILE-PATTERN, --file, --isa-assay / -a, or --category / -c. "
+            "Specify FILE-PATTERN, --file, --isa-assay / -a, --category / -c, "
+            "--measurement, --tech, --genelab-only, or --list. "
             "Use --list-categories to inspect repository categories, or "
             "`dpt osd browse` for an interactive picker."
         )
@@ -322,17 +436,30 @@ def download_files(
             filename_pattern=file_pattern,
             categories=categories,
             subcategories=subcategories,
+            measurements=measurements,
+            technologies=technologies,
+            extensions=extensions,
+            exclude_extensions=exclude_extensions,
+            search=searches,
+            exclude_search=exclude_searches,
+            genelab_only=genelab_only,
         )
+        bits = []
         if category:
-            logger.info(
-                f"Found {len(filenames)} file(s) in categories {list(category)}"
-                + (f" subcategories {list(subcategory)}" if subcategory else "")
-                + (f" matching pattern {file_pattern!r}" if file_pattern else "")
-            )
-        else:
-            logger.info(
-                f"Found {len(filenames)} file(s) matching glob pattern: {file_pattern}"
-            )
+            bits.append(f"categories {list(category)}")
+            if subcategory:
+                bits.append(f"subcategories {list(subcategory)}")
+        if assay_filters:
+            bits.append(f"measurement={measurements} tech={technologies}")
+        if genelab_only:
+            bits.append("genelab-only")
+        if file_pattern:
+            bits.append(f"pattern {file_pattern!r}")
+        logger.info(
+            f"Found {len(filenames)} file(s)"
+            + (f" matching {', '.join(bits)}" if bits else "")
+        )
+        name_filters = False
 
     if exact_files:
         available = set(commons.get_table_of_files(osd_id)["file_name"])
@@ -342,6 +469,17 @@ def download_files(
                 f"File(s) not on OSDR for {osd_id}: {missing[:5]}"
                 + (" ..." if len(missing) > 5 else "")
             )
+
+    if name_filters:
+        before = len(filenames)
+        filenames = commons.apply_name_filters(
+            filenames,
+            extensions=extensions,
+            exclude_extensions=exclude_extensions,
+            search=searches,
+            exclude_search=exclude_searches,
+        )
+        logger.info(f"Name filters kept {len(filenames)}/{before} file(s)")
 
     _run_downloads(
         osd_id,
@@ -355,6 +493,7 @@ def download_files(
         non_interactive,
         output_dir,
         jobs,
+        list_tsv=list_tsv,
     )
 
 
